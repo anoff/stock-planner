@@ -1,0 +1,74 @@
+/* ── Design tokens ─────────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg:          #ffffff;
+  --bg-surface:  #f8f7ff;
+  --bg-card:     #f3f0ff;
+
+  /* Borders */
+  --border:       #e4e0f5;
+  --border-strong: #c4b5fd;
+
+  /* Text */
+  --text:           #1e1b4b;
+  --text-secondary: #4c1d95;
+  --text-muted:     #7c6fa0;
+
+  /* Accent (violet) — mirrors favicon palette */
+  --accent:         #7c3aed;
+  --accent-light:   #a78bfa;
+  --accent-hover:   #6d28d9;
+  --accent-surface: #ede9fe;
+
+  /* Semantic */
+  --positive: #16a34a;
+  --negative:  #dc2626;
+
+  /* Charts (JS-resolved via ChartColors; also declared here for reference) */
+  --chart-grid: #ede9fe;
+  --chart-line: #8b5cf6;
+
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[data-theme="dark"] {
+  --bg:          #0f172a;
+  --bg-surface:  #1e293b;
+  --bg-card:     #1e1b3a;
+
+  --border:        #2d2b55;
+  --border-strong: #4c4577;
+
+  --text:           #f1f5f9;
+  --text-secondary: #c4b5fd;
+  --text-muted:     #8b7cb6;
+
+  --accent:         #a78bfa;
+  --accent-light:   #c4b5fd;
+  --accent-hover:   #8b5cf6;
+  --accent-surface: #2d1f5e;
+
+  --positive: #4ade80;
+  --negative:  #f87171;
+
+  --chart-grid: #2d2b55;
+  --chart-line: #a78bfa;
+}
+
+/* ── Reset ─────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Base ──────────────────────────────────────────────────────── */
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
