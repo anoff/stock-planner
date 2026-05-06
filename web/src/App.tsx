@@ -7,7 +7,7 @@ import ResearchPage from "./components/ResearchPage";
 import PositionChart from "./components/PositionChart";
 import ClosedPositions from "./components/ClosedPositions";
 import OutperformanceChart from "./components/OutperformanceChart";
-import { decodeFile, parseTrades, parsePastedTrades } from "./utils/csv";
+import { decodeFile, parseTrades } from "./utils/csv";
 import { fetchPriceData } from "./utils/prices";
 import {
   aggregatePositions,
@@ -139,23 +139,6 @@ function App() {
     [processTrades]
   );
 
-  const handlePaste = useCallback(
-    async (pastedText: string) => {
-      try {
-        setState({ stage: "parsing" });
-        const allTrades: Trade[] = parsePastedTrades(pastedText);
-        console.log(`Parsed pasted text: ${allTrades.length} trades`);
-        await processTrades(allTrades);
-      } catch (err) {
-        setState({
-          stage: "error",
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
-    },
-    [processTrades]
-  );
-
   const benchmarkName =
     BENCHMARK_OPTIONS.find((b) => b.ticker === benchmarkTicker)?.name ??
     benchmarkTicker;
@@ -217,7 +200,7 @@ function App() {
                     ))}
                   </select>
                 </div>
-                <DropZone onFileLoaded={handleFile} onPasteLoaded={handlePaste} />
+                <DropZone onFileLoaded={handleFile} />
               </>
             )}
 
