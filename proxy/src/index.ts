@@ -18,6 +18,11 @@ const ALLOWED_HOSTS: ReadonlySet<string> = new Set([
   'query2.finance.yahoo.com',
 ]);
 
+/** Origins that are allowed to use this proxy. */
+const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
+  'https://stocks.anoff.io',
+]);
+
 /** Headers forwarded from the upstream response (everything else is dropped). */
 const PASSTHROUGH_HEADERS: ReadonlyArray<string> = [
   'content-type',
@@ -28,20 +33,23 @@ const PASSTHROUGH_HEADERS: ReadonlyArray<string> = [
 
 export default {
   async fetch(request: Request): Promise<Response> {
-    // ── CORS preflight ────────────────────────────────────────────────────────
+    const origin = request.headers.get('Origin') ?? '';
+
+    if (!ALLOWED_ORIGINS.has(origin)) {
+      return errorResponse(403, `Origin "${origin}" is not allowed.`);
+    }
+
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
-        headers: corsHeaders(),
+        headers: corsHeaders(origin),
       });
     }
 
-    // ── Method guard ──────────────────────────────────────────────────────────
     if (request.method !== 'GET') {
       return errorResponse(405, 'Only GET requests are supported.');
     }
 
-    // ── Parse target URL ──────────────────────────────────────────────────────
     const incoming = new URL(request.url);
     const rawTarget = incoming.searchParams.get('url');
 
@@ -59,19 +67,16 @@ export default {
       return errorResponse(400, 'Invalid target URL.');
     }
 
-    // ── Allowlist check ───────────────────────────────────────────────────────
     if (!ALLOWED_HOSTS.has(target.hostname)) {
       return errorResponse(
         403,
         `Target host "${target.hostname}" is not allowed. ` +
-          `Permitted hosts: ${[...ALLOWED_HOSTS].join(', ')}.`,
+        `Permitted hosts: ${[...ALLOWED_HOSTS].join(', ')}.`,
       );
     }
 
-    // HTTPS only — upgrade silently if caller passed http://
     target.protocol = 'https:';
 
-    // ── Forward request ───────────────────────────────────────────────────────
     let upstream: Response;
     try {
       upstream = await fetch(target.toString(), {
@@ -92,7 +97,7 @@ export default {
     }
 
     // ── Build response ────────────────────────────────────────────────────────
-    const responseHeaders = new Headers(corsHeaders());
+    const responseHeaders = new Headers(corsHeaders(origin));
 
     for (const header of PASSTHROUGH_HEADERS) {
       const value = upstream.headers.get(header);
@@ -110,9 +115,9 @@ export default {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function corsHeaders(): Record<string, string> {
+function corsHeaders(origin: string): Record<string, string> {
   return {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Max-Age': '86400',
@@ -124,7 +129,6 @@ function errorResponse(status: number, message: string): Response {
     status,
     headers: {
       'Content-Type': 'application/json',
-      ...corsHeaders(),
     },
   });
 }
