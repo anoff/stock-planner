@@ -159,11 +159,39 @@ export function parseTrades(csvText: string): Trade[] {
     }
 
     if (qty > 0 && amount > 0) {
-      trades.push({ date, tickerCode, name, yfTicker, qty, price, amount, side });
+      trades.push({
+        date, tickerCode, name, yfTicker, qty, price, amount, side,
+        ...(isFunds ? { isFund: true } : {}),
+      });
     }
   }
 
   return trades;
+}
+
+/**
+ * Deduplicate a merged Trade array using a composite key:
+ *   date + tickerCode + side + qty + price + amount
+ *
+ * The settlement amount (which includes brokerage fees) is included so that
+ * two legitimate same-day same-stock same-price transactions with slightly
+ * different fee totals are never incorrectly collapsed.  Only genuinely
+ * identical rows — e.g. the same CSV uploaded twice, or overlapping
+ * date-range exports — will be removed.
+ *
+ * First-seen order is preserved; later duplicates are dropped.
+ */
+export function deduplicateTrades(trades: Trade[]): Trade[] {
+  const seen = new Set<string>();
+  const result: Trade[] = [];
+  for (const t of trades) {
+    const key = `${t.date.toISOString().slice(0, 10)}-${t.tickerCode}-${t.side}-${t.qty}-${t.price}-${t.amount}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(t);
+    }
+  }
+  return result;
 }
 
 /** Map fund trades to proxy tickers based on name substrings. */

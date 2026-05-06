@@ -7,7 +7,6 @@ import ResearchPage from "./components/ResearchPage";
 import PositionChart from "./components/PositionChart";
 import ClosedPositions from "./components/ClosedPositions";
 import OutperformanceChart from "./components/OutperformanceChart";
-import { decodeFile, parseTrades } from "./utils/csv";
 import { fetchPriceData } from "./utils/prices";
 import {
   aggregatePositions,
@@ -25,7 +24,6 @@ type Tab = "research" | "portfolio";
 
 type AppState =
   | { stage: "idle" }
-  | { stage: "parsing" }
   | { stage: "fetching"; progress: number; total: number }
   | {
       stage: "done";
@@ -121,20 +119,9 @@ function App() {
     [benchmarkTicker]
   );
 
-  const handleFile = useCallback(
-    async (buffer: ArrayBuffer, fileName: string) => {
-      try {
-        setState({ stage: "parsing" });
-        const text = decodeFile(buffer);
-        const allTrades: Trade[] = parseTrades(text);
-        console.log(`Parsed ${fileName}: ${allTrades.length} trades`);
-        await processTrades(allTrades);
-      } catch (err) {
-        setState({
-          stage: "error",
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
+  const handleAnalyze = useCallback(
+    async (trades: Trade[]) => {
+      await processTrades(trades);
     },
     [processTrades]
   );
@@ -167,7 +154,7 @@ function App() {
           )}
           {activeTab === "portfolio" && (
             <p>
-              Drop a Rakuten Securities CSV to analyze performance vs {benchmarkName}
+                  Drop one or more Rakuten Securities CSVs to analyze performance vs {benchmarkName}
             </p>
           )}
           <button
@@ -200,12 +187,8 @@ function App() {
                     ))}
                   </select>
                 </div>
-                <DropZone onFileLoaded={handleFile} />
+                <DropZone onAnalyze={handleAnalyze} />
               </>
-            )}
-
-            {state.stage === "parsing" && (
-              <div className="status">Parsing CSV…</div>
             )}
 
             {state.stage === "fetching" && (
@@ -240,7 +223,7 @@ function App() {
                     className="btn"
                     onClick={() => setState({ stage: "idle" })}
                   >
-                    ↩ Load another file
+                    ↩ Load new files
                   </button>
                 </div>
 

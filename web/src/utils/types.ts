@@ -8,6 +8,10 @@ export interface Trade {
   price: number;
   amount: number;
   side: "buy" | "sell";
+  /** True for investment-trust (投資信託) trades. The qty is in 口 (trust units)
+   *  and amount is in JPY, so qty × proxy-price would be nonsensical.
+   *  Valuation must use the proxy ticker's return ratio instead. */
+  isFund?: boolean;
 }
 
 /** Aggregated position for one security. */
@@ -22,6 +26,8 @@ export interface Position {
   currentValue: number;
   firstBuyDate: Date;
   lastBuyDate: Date;
+  /** Inherited from trades — true when this is an investment-trust proxy position. */
+  isFund?: boolean;
 }
 
 /** Position enriched with performance metrics. */
