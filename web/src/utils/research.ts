@@ -74,10 +74,11 @@ const YF_TIMESERIES_BASE =
   'https://query1.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries';
 
 /**
- * CORS proxy used in production to work around Yahoo Finance's missing
- * Access-Control-Allow-Origin header (same proxy as used for price data).
+ * Cloudflare Worker CORS proxy URL, injected at build time via VITE_CORS_PROXY.
+ * Set in web/.env.production or as a GitHub Actions secret.
+ * See docs/cors-proxy.md for setup instructions.
  */
-const CORS_PROXY = 'https://corsproxy.io/?';
+const CORS_PROXY: string = import.meta.env.VITE_CORS_PROXY as string;
 
 /**
  * Extract a numeric value from a Yahoo Finance raw API field.
@@ -267,34 +268,33 @@ export async function fetchStockInfo(
   ticker: string,
   currentPrice?: number | null,
 ): Promise<StockInfo | null> {
-  try {
-    // Use fundamentalsTimeSeries API via CORS proxy (no crumb/cookie auth required).
-    // Works identically in dev and production.
-    const now = Math.floor(Date.now() / 1000);
-    const twoYearsAgo = now - 2 * 365 * 86400;
+  // Use fundamentalsTimeSeries API via CORS proxy (no crumb/cookie auth required).
+  const now = Math.floor(Date.now() / 1000);
+  const twoYearsAgo = now - 2 * 365 * 86400;
 
-    // Build type parameter: trailing TTM + quarterly balance sheet
-    const trailingTypes = TRAILING_KEYS.map(k => `trailing${k}`);
-    const quarterlyTypes = [
-      ...QUARTERLY_KEYS.map(k => `quarterly${k}`),
-      ...BALANCE_SHEET_KEYS.map(k => `quarterly${k}`),
-    ];
-    const allTypes = [...trailingTypes, ...quarterlyTypes].join(',');
+  // Build type parameter: trailing TTM + quarterly balance sheet
+  const trailingTypes = TRAILING_KEYS.map(k => `trailing${k}`);
+  const quarterlyTypes = [
+    ...QUARTERLY_KEYS.map(k => `quarterly${k}`),
+    ...BALANCE_SHEET_KEYS.map(k => `quarterly${k}`),
+  ];
+  const allTypes = [...trailingTypes, ...quarterlyTypes].join(',');
 
-    const yfUrl =
-      `${YF_TIMESERIES_BASE}/${encodeURIComponent(ticker)}` +
-      `?type=${allTypes}&period1=${twoYearsAgo}&period2=${now}` +
-      `&merge=false&padTimeSeries=true&lang=en-US&region=US`;
-    const url = `${CORS_PROXY}${encodeURIComponent(yfUrl)}`;
+  const yfUrl =
+    `${YF_TIMESERIES_BASE}/${encodeURIComponent(ticker)}` +
+    `?type=${allTypes}&period1=${twoYearsAgo}&period2=${now}` +
+    `&merge=false&padTimeSeries=true&lang=en-US&region=US`;
+  const url = `${CORS_PROXY}${encodeURIComponent(yfUrl)}`;
 
-    const res = await fetch(url);
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    return parseFundamentalsTimeSeries(data, ticker, currentPrice ?? null);
-  } catch {
-    return null;
+  // Let network errors and HTTP errors propagate — callers track them as failures.
+  // Only return null when the request succeeded but Yahoo has no data for this ticker.
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} fetching fundamentals for ${ticker}`);
   }
+
+  const data = await res.json();
+  return parseFundamentalsTimeSeries(data, ticker, currentPrice ?? null);
 }
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -323,6 +323,12 @@ export interface ResearchProgress {
   total: number;
 }
 
+export interface ComputeResearchResult {
+  results: ResearchResult[];
+  /** Tickers for which the fundamentals fetch failed (HTTP/network error). */
+  failedInfo: string[];
+}
+
 /**
  * For a list of tickers + benchmark, fetch price data and fundamental info,
  * then run the scoring engine for each ticker.
@@ -335,7 +341,7 @@ export async function computeResearchMetrics(
   benchmark: string,
   priceData: PriceData,
   onProgress?: (p: ResearchProgress) => void,
-): Promise<ResearchResult[]> {
+): Promise<ComputeResearchResult> {
   const today = new Date();
 
   const cutoffs = {
@@ -360,10 +366,17 @@ export async function computeResearchMetrics(
 
   // Fetch fundamental info for all tickers
   const infoMap: Record<string, StockInfo | null> = {};
+  const failedInfo: string[] = [];
   for (let i = 0; i < tickers.length; i++) {
     const tickerHist = priceData[tickers[i]];
     const currentPrice = tickerHist ? priceOn(tickerHist, today) : null;
-    infoMap[tickers[i]] = await fetchStockInfo(tickers[i], currentPrice);
+    try {
+      infoMap[tickers[i]] = await fetchStockInfo(tickers[i], currentPrice);
+    } catch (err) {
+      console.warn(`Failed to fetch fundamentals for ${tickers[i]}:`, err);
+      infoMap[tickers[i]] = null;
+      failedInfo.push(tickers[i]);
+    }
     onProgress?.({ stage: 'info', done: i + 1, total: tickers.length });
   }
 
@@ -463,7 +476,7 @@ export async function computeResearchMetrics(
 
   // Sort by final score descending
   results.sort((a, b) => b.evaluation.finalScore - a.evaluation.finalScore);
-  return results;
+  return { results, failedInfo };
 }
 
 // ── Currency formatting ───────────────────────────────────────────────────────

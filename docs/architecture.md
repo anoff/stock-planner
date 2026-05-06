@@ -36,7 +36,7 @@ Stock Planner is a browser-based tool for quantitative stock research and person
 | Constraint | Impact |
 |---|---|
 | No backend in production | All data must be sourced from external APIs callable from the browser. Server-side proxy is only available in the Vite dev server. |
-| Yahoo Finance CORS policy | Yahoo Finance does not set `Access-Control-Allow-Origin` on most endpoints. In production a third-party CORS proxy (`corsproxy.io`) is used. |
+| Yahoo Finance CORS policy | Yahoo Finance does not set `Access-Control-Allow-Origin` on most endpoints. In production a self-hosted Cloudflare Worker acts as a CORS proxy. The worker URL is injected at build time via `VITE_CORS_PROXY`. |
 | Yahoo Finance authentication | The `quoteSummary` (v10) API requires a crumb/cookie authentication flow that is not practical from a browser without a dedicated backend. The app uses the `fundamentals-timeseries` API which is unauthenticated. |
 | Static hosting | Build output must be a directory of static files with no server-side rendering or routing. |
 | Shift-JIS encoding | Rakuten Securities CSV exports are Shift-JIS encoded. The browser `FileReader` API reads bytes as `ArrayBuffer`; the `encoding-japanese` library handles decoding. |
@@ -63,19 +63,20 @@ Stock Planner is a browser-based tool for quantitative stock research and person
 │                 │                  │                             │
 └─────────────────┼──────────────────┼─────────────────────────────┘
                   │                  │
-       ┌──────────▼──────┐  ┌────────▼─────────────┐
-       │ Yahoo Finance   │  │ CORS proxy            │
-       │ Price API       │  │ (corsproxy.io, prod)  │
-       │ /v8/finance/    │  │ OR Vite dev server    │
-       │ chart/:ticker   │  │ proxy (dev)           │
-       └─────────────────┘  └──────────────────────┘
-                                      │
-                             ┌────────▼──────────────┐
-                             │ Yahoo Finance          │
-                             │ Fundamentals API       │
-                             │ /ws/fundamentals-      │
-                             │ timeseries/v1/...      │
-                             └───────────────────────┘
+       ┌──────────▼──────┐  ┌────────▼──────────────────────────┐
+       │ Yahoo Finance   │  │ CORS proxy                         │
+       │ Price API       │  │ Cloudflare Worker (prod)           │
+       │ /v8/finance/    │  │ stock-planner-cors-proxy.          │
+       │ chart/:ticker   │  │   <subdomain>.workers.dev          │
+       └─────────────────┘  │ OR Vite dev server proxy (dev)     │
+                            └────────────────┬───────────────────┘
+                                             │
+                                    ┌────────▼──────────────┐
+                                    │ Yahoo Finance          │
+                                    │ Fundamentals API       │
+                                    │ /ws/fundamentals-      │
+                                    │ timeseries/v1/...      │
+                                    └───────────────────────┘
 ```
 
 **External interfaces:**
@@ -246,6 +247,8 @@ GitHub Actions (push to main / manual trigger)
         │
         ├─ npm run build
         │     └─ tsc -b && vite build → web/dist/ (static files)
+        │        VITE_CORS_PROXY injected from repository secret
+        │        → bakes Cloudflare Worker URL into bundle
         │
         └─ Deploy web/dist/ to gh-pages branch
                 │
@@ -255,8 +258,14 @@ GitHub Actions (push to main / manual trigger)
                 │
                 └─ Browser loads SPA
                         │
-                        └─ API calls go to corsproxy.io → Yahoo Finance
-                           (no server involved)
+                        ├─ Price/fundamentals calls →
+                        │    Cloudflare Worker (CORS proxy)
+                        │    stock-planner-cors-proxy.<subdomain>.workers.dev
+                        │         │
+                        │         └─ forwards to Yahoo Finance
+                        │
+                        └─ (fallback: corsproxy.io when
+                           VITE_CORS_PROXY is not set in build)
 ```
 
 **PR Preview:** every PR touching `web/` gets a preview at `https://<org>.github.io/stock-planner/pr-preview/pr-<N>/`, deployed by the same GitHub Actions workflow. Previews are cleaned up on PR close.
@@ -301,11 +310,13 @@ Fetch errors (network, rate-limit, missing ticker) are caught and surface either
 **Decision:** Use the `fundamentals-timeseries` API (`/ws/fundamentals-timeseries/v1/finance/timeseries`) which is accessible without authentication.
 **Consequence:** Some fields available in `quoteSummary` (dividend yield, payout ratio, recommendation mean) are not available in the timeseries endpoint. These metrics show as missing for affected stocks. The EV/EBITDA calculation uses operating income as a proxy for EBITDA.
 
-### ADR-3: CORS proxy in production via corsproxy.io
+### ADR-3: Self-hosted Cloudflare Worker as CORS proxy (replacing corsproxy.io)
 
-**Context:** Yahoo Finance does not set `Access-Control-Allow-Origin` headers. Fetching from the browser in production fails without a proxy.
-**Decision:** Use `corsproxy.io` as a pass-through CORS proxy for production requests. No API key or account required.
-**Consequence:** Dependency on a third-party service. If `corsproxy.io` becomes unavailable, data fetching in production breaks. Mitigation: the `CORS_PROXY` constant is a single string in `utils/research.ts` and `utils/prices.ts` — easy to swap.
+**Context:** Yahoo Finance does not set `Access-Control-Allow-Origin` headers. Fetching from the browser in production fails without a proxy. The original implementation used `corsproxy.io`, a shared open-source proxy, which proved unreliable (intermittent downtime, unknown rate limits).
+
+**Decision:** Deploy a minimal Cloudflare Worker (`proxy/src/index.ts`) that forwards `GET` requests to Yahoo Finance and adds CORS headers. The worker is deployed under the project owner's Cloudflare account on the free tier (100,000 req/day). The worker's URL is injected into the Vite build via the `VITE_CORS_PROXY` environment variable, set as a GitHub Actions secret for all builds (production and PR previews).
+
+**Consequence:** The worker is a self-controlled, dedicated service with no shared rate limits and Cloudflare's 99.99% uptime SLA. The allowlist restricts the proxy to Yahoo Finance hostnames only, preventing misuse. Setup is documented in `docs/cors-proxy.md`.
 
 ### ADR-4: No build-time data fetching
 
@@ -326,7 +337,8 @@ Fetch errors (network, rate-limit, missing ticker) are caught and surface either
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
 | Yahoo Finance changes API shape or authentication | Medium | High — data fetching breaks entirely | Watch for breakage; CORS_PROXY and API URLs are single-point changes |
-| corsproxy.io unavailability | Low | High — production data fetching breaks | Swap `CORS_PROXY` constant; or add VITE_CORS_PROXY environment variable |
+| Cloudflare Worker unavailability | Very low | High — production data fetching breaks | Cloudflare Workers SLA is 99.99%; swap `VITE_CORS_PROXY` to any alternative proxy if needed |
+| Cloudflare free tier exhausted (>100k req/day) | Very low | Medium — requests return 429, data shows as `—` | Upgrade to Workers Paid ($5/month); or add request caching in the worker |
 | Normalization bands become stale | Medium | Low — scores shift but model still works | Re-derive bands periodically from `finance/benchmark.py` and update `METRIC_BANDS_FALLBACK` |
 | fundamentals-timeseries missing critical fields | Medium | Medium — categories score as neutral when key metrics are absent | Already handled: missing metrics excluded from averages; displayed as `—` |
 | Scoring.ts / scoring.py drift | Low | Medium — research tool and Python reports disagree | Test suite covers key computations; changes to scoring.py should be mirrored in scoring.ts |

@@ -4,50 +4,54 @@ import type { PriceHistory, PriceData } from "./types";
 const YF_CHART_BASE = "https://query1.finance.yahoo.com/v8/finance/chart";
 
 /**
- * CORS proxy used in production to work around Yahoo Finance's missing
- * Access-Control-Allow-Origin header.  corsproxy.io is open-source and
- * free; it simply forwards the request and adds the CORS header.
- * Usage: prefix the target URL with this string (no extra encoding needed).
+ * Cloudflare Worker CORS proxy URL, injected at build time via VITE_CORS_PROXY.
+ * Set in web/.env.production or as a GitHub Actions secret.
+ * See docs/cors-proxy.md for setup instructions.
  */
-const CORS_PROXY = "https://corsproxy.io/?";
+const CORS_PROXY: string = import.meta.env.VITE_CORS_PROXY as string;
+
+export interface FetchPriceResult {
+  data: PriceData;
+  /** Tickers for which the fetch failed (network error, non-2xx response, etc.) */
+  failed: string[];
+}
 
 /**
  * Fetch historical price data for a list of tickers.
- *
- * Routes requests through corsproxy.io because Yahoo Finance does not send
- * Access-Control-Allow-Origin headers for direct browser requests.
- * Works identically in dev and production.
+ * Returns both the successful data and any tickers that failed to load
+ * so callers can surface errors in the UI rather than silently dropping them.
  */
 export async function fetchPriceData(
   tickers: string[],
   onProgress?: (done: number, total: number) => void
-): Promise<PriceData> {
+): Promise<FetchPriceResult> {
   const uniqueTickers = [...new Set(tickers)];
-  const result: PriceData = {};
+  const data: PriceData = {};
+  const failed: string[] = [];
   let done = 0;
 
   for (const ticker of uniqueTickers) {
     try {
       const history = await fetchTickerHistory(ticker);
       if (history.length > 0) {
-        result[ticker] = history;
+        data[ticker] = history;
+      } else {
+        failed.push(ticker);
       }
     } catch (err) {
       console.warn(`Failed to fetch price data for ${ticker}:`, err);
+      failed.push(ticker);
     }
     done++;
     onProgress?.(done, uniqueTickers.length);
   }
 
-  return result;
+  return { data, failed };
 }
 
 /**
  * Fetch ~5 years of daily close prices for a single ticker.
- *
- * Uses the Yahoo Finance v8 chart API via corsproxy.io CORS proxy.
- * The chart endpoint does not require crumb/cookie authentication.
- * Works identically in dev and production.
+ * Throws on HTTP errors or missing data so callers can track failures.
  */
 async function fetchTickerHistory(ticker: string): Promise<PriceHistory> {
   const now = Math.floor(Date.now() / 1000);

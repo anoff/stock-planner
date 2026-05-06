@@ -33,6 +33,7 @@ jobs:
       - run: npm run build
         env:
           VITE_BASE_PATH: /stock-planner/pr-preview/pr-${{ github.event.number }}/
+          VITE_CORS_PROXY: ${{ secrets.VITE_CORS_PROXY }}
 
       - uses: rossjrw/pr-preview-action@v1
         with:

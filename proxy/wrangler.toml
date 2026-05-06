@@ -1,0 +1,13 @@
+name = "stock-planner-cors-proxy"
+main = "src/index.ts"
+compatibility_date = "2025-05-06"
+compatibility_flags = ["nodejs_compat"]
+
+# The worker is deployed to a workers.dev subdomain by default.
+# After running `wrangler deploy` your worker will be reachable at:
+#   https://stock-planner-cors-proxy.<your-subdomain>.workers.dev
+#
+# To attach a custom domain uncomment and fill in the routes block:
+# [[routes]]
+# pattern = "proxy.example.com"
+# custom_domain = true

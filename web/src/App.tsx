@@ -34,6 +34,7 @@ type AppState =
       priceData: PriceData;
       trades: Trade[];
       tradeCount: number;
+      warnings: string[];
     }
   | { stage: "error"; message: string };
 
@@ -85,7 +86,7 @@ function App() {
 
       setState({ stage: "fetching", progress: 0, total: tickers.length });
 
-      const priceData = await fetchPriceData(tickers, (done, total) => {
+      const { data: priceData, failed: failedPrices } = await fetchPriceData(tickers, (done, total) => {
         setState({ stage: "fetching", progress: done, total });
       });
 
@@ -102,6 +103,11 @@ function App() {
         return;
       }
 
+      const warnings: string[] = [];
+      if (failedPrices.length > 0) {
+        warnings.push(`Price data unavailable for: ${failedPrices.join(", ")}`);
+      }
+
       setState({
         stage: "done",
         metrics,
@@ -109,6 +115,7 @@ function App() {
         priceData,
         trades: allTrades,
         tradeCount: buyTrades.length,
+        warnings,
       });
     },
     [benchmarkTicker]
@@ -239,6 +246,12 @@ function App() {
 
             {state.stage === "done" && (
               <>
+                {state.warnings.length > 0 && (
+                  <div className="warning">
+                    {state.warnings.map((w, i) => <p key={i}>{w}</p>)}
+                  </div>
+                )}
+
                 <div style={{ textAlign: "center", margin: "20px 0 4px" }}>
                   <button
                     className="btn"

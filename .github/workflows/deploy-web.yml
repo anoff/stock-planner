@@ -32,6 +32,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          VITE_CORS_PROXY: ${{ secrets.VITE_CORS_PROXY }}
 
       - uses: JamesIves/github-pages-deploy-action@v4
         with:

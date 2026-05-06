@@ -60,7 +60,7 @@ The app is automatically deployed to GitHub Pages on pushes to `main` that modif
 
 > **One-time setup**: GitHub Pages must be configured to deploy from the **`gh-pages` branch** (repo Settings → Pages → Source). Switch from "GitHub Actions" to "Deploy from a branch" and select `gh-pages`.
 
-> **Note:** The Yahoo Finance proxy (`/api/prices` and `/api/info`) only runs in the Vite dev server. The production build is a static site — price and fundamental data are fetched directly from Yahoo Finance with a CORS proxy in production.
+> **CORS proxy**: in production Yahoo Finance requests are routed through a Cloudflare Worker. Add a `VITE_CORS_PROXY` repository secret with your worker URL (e.g. `https://stock-planner-cors-proxy.<subdomain>.workers.dev/?url=`) and expose it in the build step of `.github/workflows/deploy-web.yml`. Without this secret the app falls back to `corsproxy.io`. See [docs/cors-proxy.md](../docs/cors-proxy.md) for the full setup guide.
 
 ## Documentation
 
