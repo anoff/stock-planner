@@ -195,7 +195,7 @@ function App() {
                   >
                     {BENCHMARK_OPTIONS.map((b) => (
                       <option key={b.ticker} value={b.ticker}>
-                        {b.name} ({b.ticker})
+                        {b.name}
                       </option>
                     ))}
                   </select>

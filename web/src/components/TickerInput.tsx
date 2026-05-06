@@ -1,21 +1,14 @@
 import { useState, type KeyboardEvent } from 'react';
+import { BENCHMARK_OPTIONS } from '../utils/types';
 
 interface Props {
   onSubmit: (tickers: string[], benchmark: string) => void;
   loading?: boolean;
 }
 
-const BENCHMARKS = [
-  { value: 'ACWI',       label: 'ACWI (Global)' },
-  { value: '^GSPC',      label: 'S&P 500' },
-  { value: '^STOXX50E',  label: 'Euro Stoxx 50' },
-  { value: '^N225',      label: 'Nikkei 225' },
-  { value: '^FTSE',      label: 'FTSE 100' },
-];
-
 export default function TickerInput({ onSubmit, loading = false }: Props) {
   const [tickerText, setTickerText] = useState('');
-  const [benchmark, setBenchmark] = useState('ACWI');
+  const [benchmark, setBenchmark] = useState(BENCHMARK_OPTIONS[0].ticker);
 
   function handleSubmit() {
     const tickers = tickerText
@@ -61,8 +54,8 @@ export default function TickerInput({ onSubmit, loading = false }: Props) {
             onChange={(e) => setBenchmark(e.target.value)}
             disabled={loading}
           >
-            {BENCHMARKS.map((b) => (
-              <option key={b.value} value={b.value}>{b.label}</option>
+            {BENCHMARK_OPTIONS.map((b) => (
+              <option key={b.ticker} value={b.ticker}>{b.name}</option>
             ))}
           </select>
         </div>
