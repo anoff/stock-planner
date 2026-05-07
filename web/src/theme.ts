@@ -45,12 +45,16 @@ export interface ThemeContextType {
   theme: Theme;
   chart: ChartColors;
   toggleTheme: () => void;
+  maskValues: boolean;
+  toggleMaskValues: () => void;
 }
 
 const defaultCtx: ThemeContextType = {
   theme: "light",
   chart: CHART_COLORS.light,
   toggleTheme: () => {},
+  maskValues: false,
+  toggleMaskValues: () => {},
 };
 
 export const ThemeContext = createContext<ThemeContextType>(defaultCtx);

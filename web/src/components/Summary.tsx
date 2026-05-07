@@ -1,4 +1,5 @@
 import type { PositionMetrics } from "../utils/types";
+import { useTheme } from "../theme";
 
 interface Props {
   metrics: PositionMetrics[];
@@ -20,7 +21,10 @@ function pctColor(val: number | null): string {
   return val >= 0 ? "var(--positive)" : "var(--negative)";
 }
 
+const MASKED = "• • •";
+
 export default function Summary({ metrics, benchmark }: Props) {
+  const { maskValues } = useTheme();
   const totalValue = metrics.reduce((s, m) => s + m.currentValue, 0);
   const totalCost  = metrics.reduce((s, m) => s + m.totalCost, 0);
   const totalReturn = totalCost > 0 ? (totalValue - totalCost) / totalCost : 0;
@@ -72,8 +76,8 @@ export default function Summary({ metrics, benchmark }: Props) {
     },
     {
       label: "Total Profit",
-      value: profitStr,
-      color: pctColor(totalProfit),
+      value: maskValues ? MASKED : profitStr,
+      color: maskValues ? "var(--text-muted)" : pctColor(totalProfit),
       sub: null,
     },
     {
