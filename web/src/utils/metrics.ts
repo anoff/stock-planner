@@ -119,6 +119,22 @@ export function aggregatePositions(
     const currentPrice = priceOn(history, now);
     if (currentPrice == null) continue;
 
+    // For investment-trust positions the qty is in 口 (trust units) and
+    // totalCost is in JPY, so qty × proxy-price (USD) would be nonsensical.
+    // Instead, scale the cost basis by the proxy ticker's return since the
+    // first buy date: currentValue = totalCost × (priceNow / priceAtBuy).
+    let currentValue: number;
+    const isFund = buys[0].isFund === true;
+    if (isFund) {
+      const priceAtBuy = priceOn(history, firstBuyDate);
+      currentValue =
+        priceAtBuy != null && priceAtBuy > 0
+          ? totalCost * (currentPrice / priceAtBuy)
+          : totalCost; // fallback: 0 % return if history doesn't reach buy date
+    } else {
+      currentValue = remainingQty * currentPrice;
+    }
+
     positions.push({
       tickerCode: buys[0].tickerCode,
       name: buys[0].name,
@@ -127,9 +143,10 @@ export function aggregatePositions(
       avgCost,
       totalCost,
       currentPrice,
-      currentValue: remainingQty * currentPrice,
+      currentValue,
       firstBuyDate,
       lastBuyDate,
+      ...(isFund ? { isFund: true } : {}),
     });
   }
 

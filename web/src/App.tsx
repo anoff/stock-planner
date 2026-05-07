@@ -7,7 +7,6 @@ import ResearchPage from "./components/ResearchPage";
 import PositionChart from "./components/PositionChart";
 import ClosedPositions from "./components/ClosedPositions";
 import OutperformanceChart from "./components/OutperformanceChart";
-import { decodeFile, parseTrades, parsePastedTrades } from "./utils/csv";
 import { fetchPriceData } from "./utils/prices";
 import {
   aggregatePositions,
@@ -25,7 +24,6 @@ type Tab = "research" | "portfolio";
 
 type AppState =
   | { stage: "idle" }
-  | { stage: "parsing" }
   | { stage: "fetching"; progress: number; total: number }
   | {
       stage: "done";
@@ -34,6 +32,7 @@ type AppState =
       priceData: PriceData;
       trades: Trade[];
       tradeCount: number;
+      warnings: string[];
     }
   | { stage: "error"; message: string };
 
@@ -85,7 +84,7 @@ function App() {
 
       setState({ stage: "fetching", progress: 0, total: tickers.length });
 
-      const priceData = await fetchPriceData(tickers, (done, total) => {
+      const { data: priceData, failed: failedPrices } = await fetchPriceData(tickers, (done, total) => {
         setState({ stage: "fetching", progress: done, total });
       });
 
@@ -102,6 +101,11 @@ function App() {
         return;
       }
 
+      const warnings: string[] = [];
+      if (failedPrices.length > 0) {
+        warnings.push(`Price data unavailable for: ${failedPrices.join(", ")}`);
+      }
+
       setState({
         stage: "done",
         metrics,
@@ -109,42 +113,15 @@ function App() {
         priceData,
         trades: allTrades,
         tradeCount: buyTrades.length,
+        warnings,
       });
     },
     [benchmarkTicker]
   );
 
-  const handleFile = useCallback(
-    async (buffer: ArrayBuffer, fileName: string) => {
-      try {
-        setState({ stage: "parsing" });
-        const text = decodeFile(buffer);
-        const allTrades: Trade[] = parseTrades(text);
-        console.log(`Parsed ${fileName}: ${allTrades.length} trades`);
-        await processTrades(allTrades);
-      } catch (err) {
-        setState({
-          stage: "error",
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
-    },
-    [processTrades]
-  );
-
-  const handlePaste = useCallback(
-    async (pastedText: string) => {
-      try {
-        setState({ stage: "parsing" });
-        const allTrades: Trade[] = parsePastedTrades(pastedText);
-        console.log(`Parsed pasted text: ${allTrades.length} trades`);
-        await processTrades(allTrades);
-      } catch (err) {
-        setState({
-          stage: "error",
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
+  const handleAnalyze = useCallback(
+    async (trades: Trade[]) => {
+      await processTrades(trades);
     },
     [processTrades]
   );
@@ -177,7 +154,7 @@ function App() {
           )}
           {activeTab === "portfolio" && (
             <p>
-              Drop a Rakuten Securities CSV to analyze performance vs {benchmarkName}
+                  Drop one or more Rakuten Securities CSVs to analyze performance vs {benchmarkName}
             </p>
           )}
           <button
@@ -205,17 +182,13 @@ function App() {
                   >
                     {BENCHMARK_OPTIONS.map((b) => (
                       <option key={b.ticker} value={b.ticker}>
-                        {b.name} ({b.ticker})
+                        {b.name}
                       </option>
                     ))}
                   </select>
                 </div>
-                <DropZone onFileLoaded={handleFile} onPasteLoaded={handlePaste} />
+                <DropZone onAnalyze={handleAnalyze} />
               </>
-            )}
-
-            {state.stage === "parsing" && (
-              <div className="status">Parsing CSV…</div>
             )}
 
             {state.stage === "fetching" && (
@@ -239,12 +212,18 @@ function App() {
 
             {state.stage === "done" && (
               <>
+                {state.warnings.length > 0 && (
+                  <div className="warning">
+                    {state.warnings.map((w, i) => <p key={i}>{w}</p>)}
+                  </div>
+                )}
+
                 <div style={{ textAlign: "center", margin: "20px 0 4px" }}>
                   <button
                     className="btn"
                     onClick={() => setState({ stage: "idle" })}
                   >
-                    ↩ Load another file
+                    ↩ Load new files
                   </button>
                 </div>
 

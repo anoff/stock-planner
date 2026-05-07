@@ -63,7 +63,14 @@ The default Vite base path is `/stock-planner/` — override with the `VITE_BASE
 VITE_BASE_PATH=/ npm run build   # deploy at root
 ```
 
-> **Yahoo Finance proxy:** the Vite dev server proxies `/api/prices` and `/api/info` to avoid CORS issues during development. In production the app calls Yahoo Finance directly through `corsproxy.io`. No API key is required.
+**Yahoo Finance CORS proxy:** in production the app routes Yahoo Finance requests through a Cloudflare Worker. Set the `VITE_CORS_PROXY` environment variable to your worker URL at build time:
+
+```bash
+VITE_CORS_PROXY=https://stock-planner-cors-proxy.<subdomain>.workers.dev/?url=
+npm run build
+```
+
+When `VITE_CORS_PROXY` is not set the app falls back to `corsproxy.io`. See [docs/cors-proxy.md](docs/cors-proxy.md) for the full setup guide.
 
 ## Documentation
 
@@ -71,6 +78,7 @@ VITE_BASE_PATH=/ npm run build   # deploy at root
 |---|---|
 | [docs/finance.md](docs/finance.md) | Financial methodology — scoring model, metric definitions, signal system, assumptions |
 | [docs/architecture.md](docs/architecture.md) | Technical architecture — arc42 format, component structure, data flow, deployment |
+| [docs/cors-proxy.md](docs/cors-proxy.md) | CORS proxy — architecture, Cloudflare Worker setup guide, GitHub Actions config |
 | [web/README.md](web/README.md) | Web app specifics — feature list, position aggregation rules, build instructions |
 
 ## Ticker format

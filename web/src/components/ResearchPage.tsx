@@ -12,7 +12,7 @@ type PageState =
   | { stage: 'idle' }
   | { stage: 'fetching-prices'; progress: number; total: number }
   | { stage: 'fetching-info'; progress: number; total: number }
-  | { stage: 'done'; results: ResearchResult[]; tickers: string[]; benchmark: string; priceData: PriceData }
+  | { stage: 'done'; results: ResearchResult[]; tickers: string[]; benchmark: string; priceData: PriceData; warnings: string[] }
   | { stage: 'error'; message: string };
 
 export default function ResearchPage() {
@@ -26,19 +26,19 @@ export default function ResearchPage() {
       const allTickers = [...new Set([...tickers, benchmark])];
       setState({ stage: 'fetching-prices', progress: 0, total: allTickers.length });
 
-      const priceData = await fetchPriceData(allTickers, (done, total) => {
+      const { data: priceData, failed: failedPrices } = await fetchPriceData(allTickers, (done, total) => {
         setState({ stage: 'fetching-prices', progress: done, total });
       });
 
       if (Object.keys(priceData).length === 0) {
-        setState({ stage: 'error', message: 'Could not fetch any price data. Check ticker symbols and network.' });
+        setState({ stage: 'error', message: 'Could not fetch any price data. Check ticker symbols and network connection.' });
         return;
       }
 
       // Fetch fundamentals + compute metrics
       setState({ stage: 'fetching-info', progress: 0, total: tickers.length });
 
-      const results = await computeResearchMetrics(
+      const { results, failedInfo } = await computeResearchMetrics(
         tickers,
         benchmark,
         priceData,
@@ -52,7 +52,17 @@ export default function ResearchPage() {
         return;
       }
 
-      setState({ stage: 'done', results, tickers, benchmark, priceData });
+      const warnings: string[] = [];
+      // Exclude the benchmark from price failure warnings (it's not shown in results)
+      const failedUserPrices = failedPrices.filter(t => tickers.includes(t));
+      if (failedUserPrices.length > 0) {
+        warnings.push(`Price data unavailable for: ${failedUserPrices.join(', ')}`);
+      }
+      if (failedInfo.length > 0) {
+        warnings.push(`Fundamental data unavailable for: ${failedInfo.join(', ')} — scores based on price metrics only`);
+      }
+
+      setState({ stage: 'done', results, tickers, benchmark, priceData, warnings });
     } catch (err) {
       setState({
         stage: 'error',
@@ -102,6 +112,12 @@ export default function ResearchPage() {
 
       {state.stage === 'done' && (
         <>
+          {state.warnings.length > 0 && (
+            <div className="warning">
+              {state.warnings.map((w, i) => <p key={i}>{w}</p>)}
+            </div>
+          )}
+
           <ResearchOverview
             results={state.results}
             onSelectTicker={handleSelectTicker}

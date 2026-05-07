@@ -182,6 +182,51 @@ describe("aggregatePositions", () => {
     // firstBuyDate must be the re-entry date, not the original buy date
     expect(positions[0].firstBuyDate.getFullYear()).toBe(2024);
   });
+
+  it("uses proxy return ratio for fund positions instead of qty × price", () => {
+    // A fund position: 50,000 口 bought for ¥50,000 total.
+    // The proxy ticker (ACWI) was at $100 on buy date and is $120 now (+20%).
+    // Expected currentValue = ¥50,000 × (120/100) = ¥60,000.
+    // Expected totalReturn = (60,000 - 50,000) / 50,000 = 0.2 (20%).
+    // Without the fix, qty × price = 50,000 × 120 = $6,000,000 — clearly wrong.
+    const buyDate = new Date("2024-01-01");
+    const now = new Date();
+
+    const trades: Trade[] = [
+      {
+        date: buyDate,
+        tickerCode: "eMAXIS Slim 全世界株式（オール・カントリー）",
+        name: "eMAXIS ACWI",
+        yfTicker: "ACWI",
+        qty: 50000,    // 口 — trust units, NOT comparable to ACWI shares
+        price: 1,      // nominal; irrelevant for valuation
+        amount: 50000, // ¥50,000 JPY cost basis
+        side: "buy",
+        isFund: true,
+      },
+    ];
+
+    const priceData: PriceData = {
+      ACWI: [
+        { date: buyDate, close: 100 }, // proxy price at buy
+        { date: now,     close: 120 }, // proxy price now (+20%)
+      ],
+    };
+
+    const positions = aggregatePositions(trades, priceData);
+    expect(positions).toHaveLength(1);
+
+    const pos = positions[0];
+    expect(pos.isFund).toBe(true);
+    // currentValue must reflect the proxy's 20% gain on the JPY cost basis
+    expect(pos.currentValue).toBeCloseTo(60000); // ¥50,000 × 1.2
+    expect(pos.totalCost).toBeCloseTo(50000);
+
+    // Verify totalReturn via calculateMetrics
+    const metrics = calculateMetrics(positions, priceData, "ACWI");
+    expect(metrics).toHaveLength(1);
+    expect(metrics[0].totalReturn).toBeCloseTo(0.2); // +20%
+  });
 });
 
 describe("computeClosedPositions", () => {
@@ -476,3 +521,4 @@ describe("calculateMetrics", () => {
     expect(metrics[0].alphaCagr).toBeDefined();
   });
 });
+

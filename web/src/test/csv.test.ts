@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { parseTrades, parsePastedTrades, resolveFundTicker, decodeFile } from "../utils/csv";
+import { parseTrades, resolveFundTicker, decodeFile, deduplicateTrades } from "../utils/csv";
+import type { Trade } from "../utils/types";
 
 describe("parseTrades", () => {
   it("parses JP stock buy trades from CSV text", () => {
@@ -40,6 +41,8 @@ describe("parseTrades", () => {
     expect(trades[0].amount).toBe(50000);
     // Fund trades have empty yfTicker (resolved later)
     expect(trades[0].yfTicker).toBe("");
+    // Fund trades must be flagged so the metrics layer uses ratio-based valuation
+    expect(trades[0].isFund).toBe(true);
   });
 
   it("throws on unsupported CSV format", () => {
@@ -72,225 +75,6 @@ describe("resolveFundTicker", () => {
   });
 });
 
-// ── Helpers to build paste text ────────────────────────────────────────────
-
-/** Build a single paste record (16 lines) in Japanese format. */
-function jpRecord({
-  execDate = "2026/02/25",
-  deliveryDate = "2026/02/27",
-  name = "テスト株式会社",
-  tickerLine = "1234 東証",
-  account = "特定",
-  txnType = "現物",
-  side = "買付",
-  qty = "100 株",
-  price = "1,000.0",
-  taxClass = "-",
-  amount = "100,000",
-}: Partial<{
-  execDate: string; deliveryDate: string; name: string; tickerLine: string;
-  account: string; txnType: string; side: string; qty: string;
-  price: string; taxClass: string; amount: string;
-}> = {}): string {
-  return [
-    execDate, deliveryDate, name, tickerLine,
-    account, txnType, side,
-    "-", "-",       // credit class, deadline
-    qty, price,
-    "-", "-", "-",  // commission, tax, costs
-    taxClass,
-    amount,
-  ].join("\n");
-}
-
-/** Build a single paste record in English (auto-translated) format. */
-function enRecord({
-  execDate = "2025/03/14",
-  deliveryDate = "2025/03/18",
-  name = "Test Corp",
-  tickerLine = "1234 TSE",
-  account = "Identification",
-  txnType = "In kind",
-  side = "Purchase",
-  qty = "100 shares",
-  price = "1,000.0",
-  taxClass = "-",
-  amount = "100,000",
-}: Partial<{
-  execDate: string; deliveryDate: string; name: string; tickerLine: string;
-  account: string; txnType: string; side: string; qty: string;
-  price: string; taxClass: string; amount: string;
-}> = {}): string {
-  return [
-    execDate, deliveryDate, name, tickerLine,
-    account, txnType, side,
-    "-", "-",
-    qty, price,
-    "-", "-", "-",
-    taxClass,
-    amount,
-  ].join("\n");
-}
-
-/** Wrap records in a realistic paste with EN headers. */
-function withEnHeaders(records: string): string {
-  return [
-    "ate of execution",
-    "Delivery date",
-    "Brand",
-    "account",
-    "transaction",
-    "Buying and selling",
-    "Credit classification",
-    "Deadline for payment",
-    "Quantity",
-    "Unit price ［yen］",
-    "Commission ［yen］",
-    "Tax ［yen］",
-    "Various costs ［yen］",
-    "Tax classification",
-    "Delivery amount ［yen］",
-    "details",
-    "",
-    records,
-  ].join("\n");
-}
-
-/** Wrap records in a realistic paste with JP headers. */
-function withJpHeaders(records: string): string {
-  return [
-    "約定日", "受渡日", "銘柄", "口座", "取引", "売買",
-    "信用区分", "弁済期限", "数量", "単価［円］", "手数料［円］",
-    "税金［円］", "諸費用［円］", "税区分", "受渡金額［円］", "詳細",
-    "",
-    records,
-  ].join("\n");
-}
-
-describe("parsePastedTrades", () => {
-  it("parses a single JP buy record", () => {
-    const text = withJpHeaders(
-      jpRecord({ name: "トレジャー・ファクトリー", tickerLine: "3093 東証", qty: "300 株", price: "1,816.0", amount: "544,800" })
-    );
-    const trades = parsePastedTrades(text);
-
-    expect(trades).toHaveLength(1);
-    expect(trades[0].tickerCode).toBe("3093");
-    expect(trades[0].yfTicker).toBe("3093.T");
-    expect(trades[0].name).toBe("トレジャー・ファクトリー");
-    expect(trades[0].qty).toBe(300);
-    expect(trades[0].price).toBeCloseTo(1816.0);
-    expect(trades[0].amount).toBe(544800);
-    expect(trades[0].side).toBe("buy");
-    expect(trades[0].date).toBeInstanceOf(Date);
-  });
-
-  it("parses a single EN buy record (auto-translated)", () => {
-    const text = withEnHeaders(
-      enRecord({ name: "Seven & i HLDGS", tickerLine: "3382 TSE", qty: "200 shares", price: "2,187.0", amount: "437,400" })
-    );
-    const trades = parsePastedTrades(text);
-
-    expect(trades).toHaveLength(1);
-    expect(trades[0].tickerCode).toBe("3382");
-    expect(trades[0].yfTicker).toBe("3382.T");
-    expect(trades[0].qty).toBe(200);
-    expect(trades[0].price).toBeCloseTo(2187.0);
-    expect(trades[0].amount).toBe(437400);
-    expect(trades[0].side).toBe("buy");
-  });
-
-  it("parses a sell trade (JP 売付)", () => {
-    const text = withJpHeaders(
-      jpRecord({ name: "本田技研", tickerLine: "7267 東証", side: "売付", qty: "1,700 株", price: "1,269.0", taxClass: "源徴あり", amount: "2,157,300" })
-    );
-    const trades = parsePastedTrades(text);
-
-    expect(trades).toHaveLength(1);
-    expect(trades[0].side).toBe("sell");
-    expect(trades[0].qty).toBe(1700);
-    expect(trades[0].amount).toBe(2157300);
-  });
-
-  it("parses multiple records in one paste (JP)", () => {
-    const records = [
-      jpRecord({ execDate: "2026/04/03", deliveryDate: "2026/04/07", name: "ホクト", tickerLine: "1379 東証", qty: "100 株", price: "1,940.0", amount: "194,000" }),
-      "",
-      jpRecord({ execDate: "2026/04/03", deliveryDate: "2026/04/07", name: "ホクト", tickerLine: "1379 東証", qty: "200 株", price: "1,939.0", amount: "387,800" }),
-      "",
-      jpRecord({ execDate: "2026/04/03", deliveryDate: "2026/04/07", name: "アステリア", tickerLine: "3853 東証", qty: "100 株", price: "1,533.0", amount: "153,300" }),
-    ].join("\n");
-
-    const trades = parsePastedTrades(withJpHeaders(records));
-
-    expect(trades).toHaveLength(3);
-    expect(trades.filter(t => t.tickerCode === "1379")).toHaveLength(2);
-    expect(trades.filter(t => t.tickerCode === "3853")).toHaveLength(1);
-  });
-
-  it("deduplicates trades when EN and JP sections overlap", () => {
-    // Simulate the same trade appearing in both EN and JP sections of the paste
-    const enSection = withEnHeaders(
-      enRecord({ execDate: "2026/02/25", deliveryDate: "2026/02/27", name: "Treasure Factory", tickerLine: "3093 TSE", qty: "300 shares", price: "1,817.0", amount: "545,100" })
-    );
-    const jpSection = withJpHeaders(
-      jpRecord({ execDate: "2026/02/25", deliveryDate: "2026/02/27", name: "トレジャー・ファクトリー", tickerLine: "3093 東証", qty: "300 株", price: "1,817.0", amount: "545,100" })
-    );
-    const trades = parsePastedTrades(enSection + "\n" + jpSection);
-
-    // Should deduplicate to one trade
-    expect(trades).toHaveLength(1);
-    expect(trades[0].tickerCode).toBe("3093");
-    expect(trades[0].qty).toBe(300);
-  });
-
-  it("parses ticker with letter suffix (e.g. 278A)", () => {
-    const text = withEnHeaders(
-      enRecord({ name: "TERRADRONE", tickerLine: "278A Tokyo Stock Exchange", qty: "300 shares", price: "2,636.0", amount: "790,800" })
-    );
-    const trades = parsePastedTrades(text);
-
-    expect(trades).toHaveLength(1);
-    expect(trades[0].tickerCode).toBe("278A");
-    expect(trades[0].yfTicker).toBe("278A.T");
-  });
-
-  it("parses trades split across multiple exchanges (same day)", () => {
-    // SUMCO bought across ToSTNeT, JAX — three separate records
-    const records = [
-      jpRecord({ execDate: "2025/12/24", deliveryDate: "2025/12/26", name: "ＳＵＭＣＯ", tickerLine: "3436 ToSTNeT", qty: "2,200 株", price: "1,400.4", amount: "3,080,880" }),
-      "",
-      jpRecord({ execDate: "2025/12/24", deliveryDate: "2025/12/26", name: "ＳＵＭＣＯ", tickerLine: "3436 JAX", qty: "200 株", price: "1,400.2", amount: "280,040" }),
-      "",
-      jpRecord({ execDate: "2025/12/24", deliveryDate: "2025/12/26", name: "ＳＵＭＣＯ", tickerLine: "3436 JAX", qty: "100 株", price: "1,400.1", amount: "140,010" }),
-    ].join("\n");
-
-    const trades = parsePastedTrades(withJpHeaders(records));
-
-    expect(trades).toHaveLength(3);
-    expect(trades.every(t => t.tickerCode === "3436")).toBe(true);
-    expect(trades.reduce((s, t) => s + t.qty, 0)).toBe(2500);
-  });
-
-  it("parses NISA account trades", () => {
-    const text = withEnHeaders(
-      enRecord({ name: "Tokyo Electron", tickerLine: "8035 Off-market", account: "NISA Growth Investment Facility", txnType: "In kind (less than unit)", qty: "50 shares", price: "22,410.0", amount: "1,120,500" })
-    );
-    const trades = parsePastedTrades(text);
-
-    expect(trades).toHaveLength(1);
-    expect(trades[0].tickerCode).toBe("8035");
-    expect(trades[0].qty).toBe(50);
-    expect(trades[0].price).toBeCloseTo(22410);
-  });
-
-  it("throws when no trades found", () => {
-    expect(() => parsePastedTrades("some random text\nwith no trade data")).toThrow(
-      "No trades found"
-    );
-  });
-});
-
 describe("decodeFile", () => {
   it("decodes UTF-8 buffer to string", () => {
     const text = "Hello, World!";
@@ -299,5 +83,87 @@ describe("decodeFile", () => {
 
     const decoded = decodeFile(buffer);
     expect(decoded).toContain("Hello, World!");
+  });
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function makeTrade(overrides: Partial<Trade> = {}): Trade {
+  return {
+    date: new Date("2025-06-15"),
+    tickerCode: "7267",
+    name: "Honda",
+    yfTicker: "7267.T",
+    qty: 100,
+    price: 1602.5,
+    amount: 160250,
+    side: "buy",
+    ...overrides,
+  };
+}
+
+describe("deduplicateTrades", () => {
+  it("returns the same trades when there are no duplicates", () => {
+    const trades: Trade[] = [
+      makeTrade({ tickerCode: "7267", amount: 160250 }),
+      makeTrade({ tickerCode: "3436", yfTicker: "3436.T", amount: 280000 }),
+    ];
+    expect(deduplicateTrades(trades)).toHaveLength(2);
+  });
+
+  it("removes exact duplicates (same file uploaded twice)", () => {
+    const trade = makeTrade();
+    const result = deduplicateTrades([trade, trade, trade]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(trade); // first-seen is kept
+  });
+
+  it("removes duplicates from overlapping date-range exports of the same type", () => {
+    // Simulates two JP exports where the middle month overlaps
+    const shared = makeTrade({ date: new Date("2025-03-01"), amount: 160250 });
+    const earlierOnly = makeTrade({ date: new Date("2025-01-15"), amount: 50000 });
+    const laterOnly = makeTrade({ date: new Date("2025-05-20"), amount: 70000 });
+
+    const file1Trades = [earlierOnly, shared];
+    const file2Trades = [shared, laterOnly]; // shared row appears in both
+    const merged = [...file1Trades, ...file2Trades];
+
+    const result = deduplicateTrades(merged);
+    expect(result).toHaveLength(3); // earlierOnly + shared + laterOnly
+  });
+
+  it("does not deduplicate trades that differ only in amount (legitimate same-day repeat buy)", () => {
+    // Same stock, same day, same price & qty but different settlement amount (different fees)
+    const trade1 = makeTrade({ amount: 160250 });
+    const trade2 = makeTrade({ amount: 160300 }); // slightly higher fees
+    expect(deduplicateTrades([trade1, trade2])).toHaveLength(2);
+  });
+
+  it("preserves trades across JP, US, and fund types without false-positive dedup", () => {
+    const jpTrade = makeTrade({ tickerCode: "7267", yfTicker: "7267.T", amount: 160250 });
+    // US trade: tickerCode is an alpha ticker, amount is in USD
+    const usTrade = makeTrade({ tickerCode: "AAPL", yfTicker: "AAPL", amount: 1500 });
+    // Fund trade: tickerCode is the full Japanese fund name
+    const fundTrade = makeTrade({
+      tickerCode: "eMAXIS Slim 全世界株式（オール・カントリー）",
+      yfTicker: "",
+      qty: 50000,
+      price: 23456,
+      amount: 50000,
+    });
+
+    const result = deduplicateTrades([jpTrade, usTrade, fundTrade]);
+    expect(result).toHaveLength(3);
+  });
+
+  it("preserves insertion order, keeping first occurrence of each duplicate", () => {
+    const first = makeTrade({ amount: 160250 });
+    const duplicate = makeTrade({ amount: 160250 });
+    const other = makeTrade({ tickerCode: "3436", yfTicker: "3436.T", amount: 280000 });
+
+    const result = deduplicateTrades([first, duplicate, other]);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toBe(first);
+    expect(result[1]).toBe(other);
   });
 });

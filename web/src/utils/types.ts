@@ -8,6 +8,10 @@ export interface Trade {
   price: number;
   amount: number;
   side: "buy" | "sell";
+  /** True for investment-trust (投資信託) trades. The qty is in 口 (trust units)
+   *  and amount is in JPY, so qty × proxy-price would be nonsensical.
+   *  Valuation must use the proxy ticker's return ratio instead. */
+  isFund?: boolean;
 }
 
 /** Aggregated position for one security. */
@@ -22,6 +26,8 @@ export interface Position {
   currentValue: number;
   firstBuyDate: Date;
   lastBuyDate: Date;
+  /** Inherited from trades — true when this is an investment-trust proxy position. */
+  isFund?: boolean;
 }
 
 /** Position enriched with performance metrics. */
@@ -70,10 +76,12 @@ export interface ClosedPosition {
   cagr: number;
 }
 
-/** Available benchmark options for reference comparison. */
+/** Available benchmark options for reference comparison. Used by both Research and Rakuten Analysis tabs. */
 export const BENCHMARK_OPTIONS: { ticker: string; name: string }[] = [
-  { ticker: "^GSPC", name: "S&P 500" },
-  { ticker: "1306.T", name: "TOPIX ETF (1306.T)" },
-  { ticker: "^N225", name: "Nikkei 225" },
-  { ticker: "ACWI", name: "MSCI All Country (ACWI)" },
+  { ticker: "ACWI",      name: "MSCI All Country (ACWI)" },
+  { ticker: "^GSPC",     name: "S&P 500" },
+  { ticker: "^N225",     name: "Nikkei 225" },
+  { ticker: "1306.T",    name: "TOPIX ETF (1306.T)" },
+  { ticker: "^STOXX50E", name: "Euro Stoxx 50" },
+  { ticker: "^FTSE",     name: "FTSE 100" },
 ];
