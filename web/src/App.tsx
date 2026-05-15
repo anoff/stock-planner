@@ -66,6 +66,10 @@ function App() {
 
   const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
 
+  // ── Mask values ──────────────────────────────────────────────────
+  const [maskValues, setMaskValues] = useState(false);
+  const toggleMaskValues = () => setMaskValues((v) => !v);
+
   // ── Shared pipeline: positions → prices → metrics ────────────
   const processTrades = useCallback(
     async (allTrades: Trade[]) => {
@@ -131,7 +135,7 @@ function App() {
     benchmarkTicker;
 
   return (
-    <ThemeContext.Provider value={{ theme, chart: CHART_COLORS[theme], toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, chart: CHART_COLORS[theme], toggleTheme, maskValues, toggleMaskValues }}>
       <div className="app">
         <header className="app-header">
           <h1>Stock Planner</h1>
@@ -157,13 +161,23 @@ function App() {
                   Drop one or more Rakuten Securities CSVs to analyze performance vs {benchmarkName}
             </p>
           )}
-          <button
-            className="theme-toggle"
-            onClick={toggleTheme}
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {theme === "dark" ? "☀" : "☾"}
-          </button>
+          <div className="header-controls">
+            <button
+              className={`mask-values-toggle${maskValues ? " mask-values-toggle--active" : ""}`}
+              onClick={toggleMaskValues}
+              aria-label={maskValues ? "Show values" : "Hide values"}
+              title={maskValues ? "Show values" : "Hide values"}
+            >
+              {maskValues ? "🙈" : "👁"} {maskValues ? "show values" : "hide values"}
+            </button>
+            <button
+              className="theme-toggle"
+              onClick={toggleTheme}
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? "☀" : "☾"}
+            </button>
+          </div>
         </header>
 
         {activeTab === "research" && <ResearchPage />}

@@ -22,12 +22,20 @@
   margin: 0;
 }
 
-/* ── Theme toggle ─────────────────────────────────────────────────────────── */
+/* ── Header controls (theme + mask toggles) ───────────────────────────────── */
 
-.theme-toggle {
+.header-controls {
   position: absolute;
   top: 0;
   right: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Theme toggle ─────────────────────────────────────────────────────────── */
+
+.theme-toggle {
   padding: 6px 10px;
   border-radius: 6px;
   border: 1px solid var(--border);
@@ -41,6 +49,40 @@
 .theme-toggle:hover {
   background: var(--bg-card);
   border-color: var(--border-strong);
+}
+
+/* ── Mask-values toggle ───────────────────────────────────────────────────── */
+
+.mask-values-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.mask-values-toggle:hover {
+  background: var(--bg-card);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.mask-values-toggle--active {
+  background: var(--accent-surface);
+  border-color: var(--accent-light);
+  color: var(--accent);
+}
+
+.mask-values-toggle--active:hover {
+  background: var(--accent-surface);
+  border-color: var(--accent);
 }
 
 /* ── Tab navigation ──────────────────────────────────────────────────────────── */

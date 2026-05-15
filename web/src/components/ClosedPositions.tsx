@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ClosedPosition, PriceData } from "../utils/types";
 import PositionChart from "./PositionChart";
+import { useTheme } from "../theme";
 
 interface Props {
   positions: ClosedPosition[];
@@ -36,9 +37,12 @@ function rowKey(p: ClosedPosition): string {
   return `${p.yfTicker}-${p.lastSellDate.getTime()}`;
 }
 
+const MASKED = "• • •";
+
 export default function ClosedPositions({ positions, priceData }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [chartsVisible, setChartsVisible] = useState(false);
+  const { maskValues } = useTheme();
 
   if (positions.length === 0) return null;
 
@@ -82,8 +86,8 @@ export default function ClosedPositions({ positions, priceData }: Props) {
                       <td className="col-right" style={{ color: "var(--text-muted)" }}>
                         {p.daysHeld}
                       </td>
-                      <td className="col-right" style={{ color: pctColor(profit), fontVariantNumeric: "tabular-nums" }}>
-                        {fmtJpy(profit)}
+                      <td className="col-right" style={{ color: maskValues ? "var(--text-muted)" : pctColor(profit), fontVariantNumeric: "tabular-nums" }}>
+                        {maskValues ? MASKED : fmtJpy(profit)}
                       </td>
                       <td className="col-right" style={{ color: pctColor(p.totalReturn), fontWeight: 600 }}>
                         {fmtPct(p.totalReturn)}

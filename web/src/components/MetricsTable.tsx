@@ -1,5 +1,6 @@
 import React from "react";
 import type { PositionMetrics } from "../utils/types";
+import { useTheme } from "../theme";
 
 interface Props {
   metrics: PositionMetrics[];
@@ -36,6 +37,8 @@ function signalColor(signal: string): string {
   return map[signal] ?? "var(--text-muted)";
 }
 
+const MASKED = "• • •";
+
 const HEADERS = [
   { label: "Name",         align: "left"  },
   { label: "Profit",       align: "right" },
@@ -51,6 +54,7 @@ const HEADERS = [
 ] as const;
 
 export default function MetricsTable({ metrics, benchmark }: Props) {
+  const { maskValues } = useTheme();
   const tooEarly = metrics.filter((m) => m.signal === "⏳ Too Early");
   const rest     = metrics.filter((m) => m.signal !== "⏳ Too Early");
   rest.sort((a, b) => b.cagr - a.cagr);
@@ -105,8 +109,8 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
                     <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500 }}>
                       {m.name}
                     </td>
-                    <td className="col-right" style={{ color: pctColor(profit), fontVariantNumeric: "tabular-nums" }}>
-                      {fmtJpy(profit)}
+                    <td className="col-right" style={{ color: maskValues ? "var(--text-muted)" : pctColor(profit), fontVariantNumeric: "tabular-nums" }}>
+                      {maskValues ? MASKED : fmtJpy(profit)}
                     </td>
                     <td style={{ color: "var(--accent)", fontWeight: 600, fontSize: 12 }}>
                       {m.yfTicker}
