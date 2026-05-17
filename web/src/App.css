@@ -71,6 +71,21 @@
   gap: 6px;
 }
 
+@media (max-width: 600px) {
+  .app-header h1 {
+    /* Reserve space so the fixed GitHub corner (80×80 px) doesn't overlap the title */
+    padding-top: 56px;
+  }
+
+  .header-controls {
+    /* Take the controls out of the absolute layer and flow them naturally */
+    position: static;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+}
+
 /* ── Theme toggle ─────────────────────────────────────────────────────────── */
 
 .theme-toggle {
@@ -644,10 +659,10 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s;
-  z-index: 101;
+  z-index: 1001;
 }
 
-/* Tooltip bubble — opens downward so it never clips behind the table header */
+/* Tooltip bubble — opens downward, centered under the icon */
 .metric-desc-icon::after {
   content: attr(data-tooltip);
   position: absolute;
@@ -662,7 +677,7 @@
   line-height: 1.45;
   white-space: normal;
   width: 260px;
-  z-index: 100;
+  z-index: 1000;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s;
@@ -687,19 +702,9 @@
   outline-offset: 1px;
 }
 
-/* Avoid tooltip overflowing off the left edge of the table on narrow screens */
-@media (max-width: 480px) {
-  .metric-desc-icon::after {
-    left: auto;
-    right: 0;
-    transform: none;
-    width: 220px;
-  }
-  .metric-desc-icon::before {
-    left: auto;
-    right: 6px;
-    transform: none;
-  }
+/* Let tooltips escape the overflow-x: auto scroll container */
+.table-scroll:has(.metric-desc-icon) {
+  overflow: visible;
 }
 
 /* Stock detail card */
@@ -838,6 +843,8 @@
   padding: 4px 8px;
   border-bottom: 1px solid var(--border);
   color: var(--text);
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .detail-label {
