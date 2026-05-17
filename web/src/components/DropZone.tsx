@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { decodeFile, parseTrades, deduplicateTrades } from "../utils/csv";
 import type { Trade } from "../utils/types";
+import { useLanguage } from "../i18n";
 
 interface StagedFile {
   fileName: string;
@@ -29,6 +30,7 @@ async function parseFileBuffer(data: ArrayBuffer, fileName: string): Promise<Sta
 export default function DropZone({ onAnalyze }: DropZoneProps) {
   const [dragOver, setDragOver] = useState(false);
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
+  const { t } = useLanguage();
 
   const addFiles = useCallback(async (fileList: FileList) => {
     const incoming = await Promise.all(
@@ -106,11 +108,11 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
           <div style={{ fontSize: 32, marginBottom: 10, opacity: 0.65 }}>📂</div>
         )}
         <p style={{ fontSize: hasFiles ? 13 : 16, fontWeight: 600, color: "var(--text)", margin: "0 0 4px" }}>
-          {hasFiles ? "Drop more files or browse to add" : "Drop your Rakuten CSVs here"}
+          {hasFiles ? t.dropMoreFiles : t.dropHere}
         </p>
         {!hasFiles && (
           <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 18px" }}>
-            You can mix JP, US and fund CSV files — duplicates across files are removed automatically
+            {t.dropHint}
           </p>
         )}
         <label
@@ -133,7 +135,7 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
             (e.currentTarget as HTMLLabelElement).style.backgroundColor = "var(--accent)";
           }}
         >
-          Browse files
+          {t.browseFiles}
           <input
             type="file"
             accept=".csv"
@@ -198,7 +200,7 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
                     }}
                     title={f.error}
                   >
-                    error
+                    {t.errorBadge}
                   </span>
                 ) : (
                   <span
@@ -212,14 +214,14 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
                       flexShrink: 0,
                     }}
                   >
-                    {f.trades.length} trades
+                    {t.tradesBadge(f.trades.length)}
                   </span>
                 )}
 
                 {/* Remove */}
                 <button
                   onClick={() => removeFile(f.fileName)}
-                  title="Remove file"
+                  title={t.removeFile}
                   style={{
                     background: "none",
                     border: "none",
@@ -252,14 +254,14 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
           >
             <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
               {hasErrors ? (
-                <span style={{ color: "var(--negative)" }}>Fix errors before analyzing</span>
+                <span style={{ color: "var(--negative)" }}>{t.fixErrorsBeforeAnalyzing}</span>
               ) : (
                 <>
                   <span style={{ color: "var(--text)", fontWeight: 600 }}>{totalTrades}</span>
-                  {" trades · "}
+                  {t.dropTradesSuffix}
+                  {t.dropTradeSeparator}
                   <span style={{ color: "var(--text)", fontWeight: 600 }}>{totalPositions}</span>
-                  {" position"}
-                  {totalPositions !== 1 ? "s" : ""}
+                  {t.dropPositionSuffix(totalPositions)}
                 </>
               )}
             </span>
@@ -269,7 +271,7 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
               onClick={handleAnalyze}
               disabled={hasErrors || totalTrades === 0}
             >
-              Analyze →
+              {t.analyzeBtn}
             </button>
           </div>
         </div>

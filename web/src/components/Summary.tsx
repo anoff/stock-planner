@@ -1,5 +1,6 @@
 import type { PositionMetrics } from "../utils/types";
 import { useTheme } from "../theme";
+import { useLanguage } from "../i18n";
 
 interface Props {
   metrics: PositionMetrics[];
@@ -25,6 +26,7 @@ const MASKED = "• • •";
 
 export default function Summary({ metrics, benchmark }: Props) {
   const { maskValues } = useTheme();
+  const { t } = useLanguage();
   const totalValue = metrics.reduce((s, m) => s + m.currentValue, 0);
   const totalCost  = metrics.reduce((s, m) => s + m.totalCost, 0);
   const totalReturn = totalCost > 0 ? (totalValue - totalCost) / totalCost : 0;
@@ -69,36 +71,36 @@ export default function Summary({ metrics, benchmark }: Props) {
 
   const cards = [
     {
-      label: "Positions",
+      label: t.labelPositions,
       value: String(metrics.length),
       color: "var(--accent)",
       sub: null,
     },
     {
-      label: "Total Profit",
+      label: t.labelTotalProfit,
       value: maskValues ? MASKED : profitStr,
       color: maskValues ? "var(--text-muted)" : pctColor(totalProfit),
       sub: null,
     },
     {
-      label: "Total Return",
+      label: t.labelTotalReturn,
       value: fmtPct(totalReturn),
       color: pctColor(totalReturn),
       sub: null,
     },
     {
-      label: "Portfolio Alpha",
+      label: t.labelPortfolioAlpha,
       value: fmtPp(portfolioAlpha),
       color: pctColor(portfolioAlpha),
       sub: outperformPct != null
-        ? `${Math.round(outperformPct * 100)}% outperforming vs ${benchmark}`
+        ? t.outperforming(outperformPct, benchmark)
         : null,
     },
   ];
 
   return (
     <div style={{ margin: "24px 0" }}>
-      <div className="section-title">📋 Portfolio Summary</div>
+      <div className="section-title">{t.portfolioSummary}</div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         {cards.map((c) => (
           <div

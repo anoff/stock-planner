@@ -18,6 +18,8 @@ import type { ClosedPosition, PositionMetrics, PriceData, Trade } from "./utils/
 import { BENCHMARK_OPTIONS } from "./utils/types";
 import { ThemeContext, CHART_COLORS } from "./theme";
 import type { Theme } from "./theme";
+import { LanguageContext, loadLanguage, saveLanguage, LANGUAGES } from "./i18n";
+import type { Language } from "./i18n";
 import "./App.css";
 
 type Tab = "research" | "portfolio";
@@ -66,6 +68,17 @@ function App() {
 
   const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
 
+  // ── Language ─────────────────────────────────────────────────────
+  const [language, setLanguage] = useState<Language>(loadLanguage);
+  const t = LANGUAGES[language];
+
+  const toggleLanguage = () =>
+    setLanguage((l) => {
+      const next: Language = l === "en" ? "ja" : "en";
+      saveLanguage(next);
+      return next;
+    });
+
   // ── Mask values ──────────────────────────────────────────────────
   const [maskValues, setMaskValues] = useState(false);
   const toggleMaskValues = () => setMaskValues((v) => !v);
@@ -73,15 +86,15 @@ function App() {
   // ── Shared pipeline: positions → prices → metrics ────────────
   const processTrades = useCallback(
     async (allTrades: Trade[]) => {
-      const buyTrades = allTrades.filter((t) => t.side === "buy");
+      const buyTrades = allTrades.filter((trade) => trade.side === "buy");
       if (buyTrades.length === 0) {
-        setState({ stage: "error", message: "No buy trades found." });
+        setState({ stage: "error", message: t.noBuyTrades });
         return;
       }
 
       const tickers = [
         ...new Set(
-          buyTrades.map((t) => t.yfTicker).filter((t) => t !== "")
+          buyTrades.map((trade) => trade.yfTicker).filter((ticker) => ticker !== "")
         ),
         benchmarkTicker,
       ];
@@ -99,15 +112,14 @@ function App() {
       if (metrics.length === 0 && closed.length === 0) {
         setState({
           stage: "error",
-          message:
-            "Could not calculate metrics for any position. Price data may be unavailable.",
+          message: t.noMetrics,
         });
         return;
       }
 
       const warnings: string[] = [];
       if (failedPrices.length > 0) {
-        warnings.push(`Price data unavailable for: ${failedPrices.join(", ")}`);
+        warnings.push(t.pricesUnavailableFor(failedPrices.join(", ")));
       }
 
       setState({
@@ -120,7 +132,7 @@ function App() {
         warnings,
       });
     },
-    [benchmarkTicker]
+    [benchmarkTicker, t]
   );
 
   const handleAnalyze = useCallback(
@@ -135,45 +147,52 @@ function App() {
     benchmarkTicker;
 
   return (
+    <LanguageContext.Provider value={{ language, t, toggleLanguage }}>
     <ThemeContext.Provider value={{ theme, chart: CHART_COLORS[theme], toggleTheme, maskValues, toggleMaskValues }}>
       <div className="app">
         <header className="app-header">
-          <h1>Stock Planner</h1>
+          <h1>{t.appTitle}</h1>
           <nav className="app-tabs">
             <button
               className={`app-tab${activeTab === "research" ? " app-tab--active" : ""}`}
               onClick={() => setActiveTab("research")}
             >
-              Research
+              {t.tabResearch}
             </button>
             <button
               className={`app-tab${activeTab === "portfolio" ? " app-tab--active" : ""}`}
               onClick={() => setActiveTab("portfolio")}
             >
-              Rakuten Analysis
+              {t.tabPortfolio}
             </button>
           </nav>
           {activeTab === "research" && (
-            <p>Enter tickers to get a quantitative research report with scoring across Valuation, Quality, Health, Growth &amp; Momentum.</p>
+            <p>{t.descResearch}</p>
           )}
           {activeTab === "portfolio" && (
-            <p>
-                  Drop one or more Rakuten Securities CSVs to analyze performance vs {benchmarkName}
-            </p>
+            <p>{t.descPortfolio(benchmarkName)}</p>
           )}
           <div className="header-controls">
             <button
               className={`mask-values-toggle${maskValues ? " mask-values-toggle--active" : ""}`}
               onClick={toggleMaskValues}
-              aria-label={maskValues ? "Show values" : "Hide values"}
-              title={maskValues ? "Show values" : "Hide values"}
+              aria-label={maskValues ? t.showValues : t.hideValues}
+              title={maskValues ? t.showValues : t.hideValues}
             >
-              {maskValues ? "🙈" : "👁"} {maskValues ? "show values" : "hide values"}
+              {maskValues ? "🙈" : "👁"} {maskValues ? t.showValues : t.hideValues}
+            </button>
+            <button
+              className="lang-toggle"
+              onClick={toggleLanguage}
+              title={language === "en" ? t.switchToJapanese : t.switchToEnglish}
+              aria-label={language === "en" ? t.switchToJapanese : t.switchToEnglish}
+            >
+              {language === "en" ? "🇯🇵" : "🇺🇸"}
             </button>
             <button
               className="theme-toggle"
               onClick={toggleTheme}
-              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              title={theme === "dark" ? t.switchToLight : t.switchToDark}
             >
               {theme === "dark" ? "☀" : "☾"}
             </button>
@@ -207,7 +226,7 @@ function App() {
 
             {state.stage === "fetching" && (
               <div className="status">
-                <div>Fetching price data… {state.progress}/{state.total}</div>
+                <div>{t.fetchingPrices(state.progress, state.total)}</div>
                 <div className="progress-bar">
                   <div
                     className="progress-fill"
@@ -220,7 +239,7 @@ function App() {
             {state.stage === "error" && (
               <div className="error">
                 <p>{state.message}</p>
-                <button onClick={() => setState({ stage: "idle" })}>Try again</button>
+                <button onClick={() => setState({ stage: "idle" })}>{t.tryAgain}</button>
               </div>
             )}
 
@@ -237,7 +256,7 @@ function App() {
                     className="btn"
                     onClick={() => setState({ stage: "idle" })}
                   >
-                    ↩ Load new files
+                    {t.loadNewFiles}
                   </button>
                 </div>
 
@@ -256,19 +275,17 @@ function App() {
                 {state.metrics.length > 0 && (
                   <div style={{ margin: "32px 0" }}>
                     <div className="section-title">
-                      📉 Position History Charts
+                      {t.positionHistoryCharts}
                     </div>
                     <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "-8px 0 14px" }}>
-                      Price timeseries with{" "}
-                      <span style={{ color: "#22c55e", fontWeight: 600 }}>B</span> = buy,{" "}
-                      <span style={{ color: "#f87171", fontWeight: 600 }}>S</span> = sell markers.
+                      {t.chartLegendText}
                     </p>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
                       <button
                         className={`btn${showDetailCharts ? " btn-active" : ""}`}
                         onClick={() => setShowDetailCharts((v) => !v)}
                       >
-                        {showDetailCharts ? "Hide Charts" : "📈 Show Charts"}
+                        {showDetailCharts ? t.hideCharts : t.showCharts}
                       </button>
                       {showDetailCharts && (
                         <div style={{ display: "flex", gap: 4 }}>
@@ -330,10 +347,11 @@ function App() {
         )}
 
         <footer className="app-footer">
-          <p>Data sourced from Yahoo Finance. All calculations are performed in the browser.</p>
+          <p>{t.footer}</p>
         </footer>
       </div>
     </ThemeContext.Provider>
+    </LanguageContext.Provider>
   );
 }
 
