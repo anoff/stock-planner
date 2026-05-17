@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { rawNum, rawStr, parseFundamentalsTimeSeries } from '../utils/research';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { rawNum, rawStr, parseFundamentalsTimeSeries, fetchStockName } from '../utils/research';
 
 describe('rawNum', () => {
   it('returns null for null/undefined', () => {
@@ -254,5 +254,111 @@ describe('parseFundamentalsTimeSeries', () => {
     const info = parseFundamentalsTimeSeries(data, 'TEST', null);
     expect(info).not.toBeNull();
     expect(info!.freeCashflow).toBe(5000000);
+  });
+
+  it('uses provided longName and shortName instead of ticker', () => {
+    const mockData = buildMockTimeSeries();
+    const info = parseFundamentalsTimeSeries(
+      mockData, '7011.T', 420,
+      'Mitsubishi Heavy Industries, Ltd.', 'Mitsubishi Heavy',
+    );
+    expect(info).not.toBeNull();
+    expect(info!.longName).toBe('Mitsubishi Heavy Industries, Ltd.');
+    expect(info!.shortName).toBe('Mitsubishi Heavy');
+  });
+
+  it('falls back to ticker when longName/shortName are empty strings', () => {
+    const mockData = buildMockTimeSeries();
+    const info = parseFundamentalsTimeSeries(mockData, '7011.T', 420, '', '');
+    expect(info).not.toBeNull();
+    expect(info!.longName).toBe('7011.T');
+    expect(info!.shortName).toBe('7011.T');
+  });
+
+  it('falls back to ticker when longName/shortName are omitted', () => {
+    const mockData = buildMockTimeSeries();
+    const info = parseFundamentalsTimeSeries(mockData, 'MSFT', 420);
+    expect(info).not.toBeNull();
+    expect(info!.longName).toBe('MSFT');
+    expect(info!.shortName).toBe('MSFT');
+  });
+});
+
+// ── fetchStockName ────────────────────────────────────────────────────────────
+
+describe('fetchStockName', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('returns longName and shortName from Yahoo Finance search result', async () => {
+    const mockResponse = {
+      quotes: [
+        {
+          symbol: '7011.T',
+          longname: 'Mitsubishi Heavy Industries, Ltd.',
+          shortname: 'Mitsubishi Heavy Industries',
+        },
+      ],
+    };
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    } as Response);
+
+    const result = await fetchStockName('7011.T');
+    expect(result.longName).toBe('Mitsubishi Heavy Industries, Ltd.');
+    expect(result.shortName).toBe('Mitsubishi Heavy Industries');
+  });
+
+  it('prefers exact symbol match over first result', async () => {
+    const mockResponse = {
+      quotes: [
+        { symbol: 'OTHER', longname: 'Other Corp', shortname: 'Other' },
+        { symbol: '9984.T', longname: 'SoftBank Group Corp.', shortname: 'SoftBank Group' },
+      ],
+    };
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    } as Response);
+
+    const result = await fetchStockName('9984.T');
+    expect(result.longName).toBe('SoftBank Group Corp.');
+    expect(result.shortName).toBe('SoftBank Group');
+  });
+
+  it('returns fallback empty strings when fetch fails (non-ok status)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+    } as Response);
+
+    const result = await fetchStockName('UNKNOWN');
+    expect(result.longName).toBe('');
+    expect(result.shortName).toBe('');
+  });
+
+  it('returns fallback empty strings on network error', async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
+
+    const result = await fetchStockName('7203.T');
+    expect(result.longName).toBe('');
+    expect(result.shortName).toBe('');
+  });
+
+  it('returns fallback empty strings when quotes array is empty', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ quotes: [] }),
+    } as Response);
+
+    const result = await fetchStockName('NORESULT');
+    expect(result.longName).toBe('');
+    expect(result.shortName).toBe('');
   });
 });
