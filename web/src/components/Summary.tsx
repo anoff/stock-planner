@@ -148,7 +148,7 @@ export default function Summary({ metrics, benchmark }: Props) {
               color: "var(--text-secondary)",
             }}
           >
-            {sig}: <strong>{count}</strong>
+            {t.signalLabels[sig] ?? sig}: <strong>{count}</strong>
           </span>
         ))}
       </div>

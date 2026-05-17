@@ -49,11 +49,13 @@ const en: Translations = {
   referenceBenchmark: 'Reference benchmark:',
 
   // ── Outperformance chart ──────────────────────────────────────────────────
-  outperformanceBreakdown: '📊 Outperformance Breakdown',
+  outperformanceBreakdown: '📊 Performance Breakdown',
   outperformanceDesc: (benchmark) =>
     `Share of positions (or portfolio volume) beating the benchmark / being profitable. Excludes ⏳ Too Early positions. Benchmark: ${benchmark}.`,
   tooltipOutperforming: 'Outperforming',
   tooltipUnderperforming: 'Underperforming',
+  tooltipProfitable: 'Profitable',
+  tooltipUnprofitable: 'Unprofitable',
   barAlphaCagrCount: 'α CAGR\n(count)',
   barAlphaCagrVolume: 'α CAGR\n(volume)',
   barCagrCount: 'CAGR\n(count)',
@@ -83,6 +85,14 @@ const en: Translations = {
   colSignal: 'Signal',
   tooEarlyLabel:
     '⏳ Too Early — held <3 months, sorted by total return',
+  signalLabels: {
+    '⏳ Too Early':   '⏳ Too Early',
+    '🟢 Hold':        '🟢 Hold',
+    '🟣 Take Profit': '🟣 Take Profit',
+    '🔵 Buy More':    '🔵 Buy More',
+    '🟡 Watch':       '🟡 Watch',
+    '🔴 Sell':        '🔴 Sell',
+  },
 
   // ── Drop zone ─────────────────────────────────────────────────────────────
   dropHere: 'Drop your Rakuten CSVs here',

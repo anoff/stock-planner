@@ -49,11 +49,13 @@ const ja: Translations = {
   referenceBenchmark: 'リファレンスベンチマーク:',
 
   // ── Outperformance chart ──────────────────────────────────────────────────
-  outperformanceBreakdown: '📊 アウトパフォーマンス分析',
+  outperformanceBreakdown: '📊 パフォーマンス分析',
   outperformanceDesc: (benchmark) =>
     `ベンチマークを上回った、または利益が出たポジションの割合（ポートフォリオ比率でも算出）。⏳ 保有期間3ヶ月未満のポジションを除く。ベンチマーク: ${benchmark}。`,
   tooltipOutperforming: 'アウトパフォーム',
   tooltipUnderperforming: 'アンダーパフォーム',
+  tooltipProfitable: '利益あり',
+  tooltipUnprofitable: '損失',
   barAlphaCagrCount: 'α CAGR\n(件数)',
   barAlphaCagrVolume: 'α CAGR\n(金額)',
   barCagrCount: 'CAGR\n(件数)',
@@ -83,6 +85,14 @@ const ja: Translations = {
   colSignal: 'シグナル',
   tooEarlyLabel:
     '⏳ 保有期間3ヶ月未満 — 総リターン順',
+  signalLabels: {
+    '⏳ Too Early':   '⏳ 保有期間短い',
+    '🟢 Hold':        '🟢 保持',
+    '🟣 Take Profit': '🟣 利益確定',
+    '🔵 Buy More':    '🔵 追加購入',
+    '🟡 Watch':       '🟡 注目',
+    '🔴 Sell':        '🔴 売却',
+  },
 
   // ── Drop zone ─────────────────────────────────────────────────────────────
   dropHere: '楽天証券のCSVをここにドロップ',

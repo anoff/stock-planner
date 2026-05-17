@@ -139,7 +139,7 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
                       {m.fuzzyScore >= 0 ? "+" : ""}{m.fuzzyScore.toFixed(2)}
                     </td>
                     <td style={{ color: signalColor(m.signal), fontWeight: 600 }}>
-                      {m.signal}
+                      {t.signalLabels[m.signal] ?? m.signal}
                     </td>
                   </tr>
                 </React.Fragment>

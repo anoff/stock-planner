@@ -44,6 +44,8 @@ export interface Translations {
   outperformanceDesc: (benchmark: string) => string;
   tooltipOutperforming: string;
   tooltipUnderperforming: string;
+  tooltipProfitable: string;
+  tooltipUnprofitable: string;
   barAlphaCagrCount: string;
   barAlphaCagrVolume: string;
   barCagrCount: string;
@@ -71,6 +73,7 @@ export interface Translations {
   colScore: string;
   colSignal: string;
   tooEarlyLabel: string;
+  signalLabels: Record<string, string>;
 
   // ── Drop zone ─────────────────────────────────────────────────────────────
   dropHere: string;

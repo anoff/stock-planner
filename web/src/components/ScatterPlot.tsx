@@ -12,6 +12,7 @@ import {
 import type { TooltipContentProps } from "recharts";
 import type { PositionMetrics } from "../utils/types";
 import { useTheme } from "../theme";
+import { useLanguage } from "../i18n";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyTooltipProps = Partial<TooltipContentProps<any, any>>;
@@ -40,10 +41,11 @@ type ScatterPoint = {
   signal: string;
 };
 
-function makeCustomTooltip(chart: ReturnType<typeof useTheme>["chart"]) {
+function makeCustomTooltip(chart: ReturnType<typeof useTheme>["chart"], signalLabels: Record<string, string>) {
   return function CustomTooltip({ active, payload }: AnyTooltipProps) {
     if (!active || !payload || payload.length === 0) return null;
     const p = payload[0].payload as ScatterPoint;
+    const displaySignal = signalLabels[p.signal] ?? p.signal;
     return (
       <div
         style={{
@@ -69,7 +71,7 @@ function makeCustomTooltip(chart: ReturnType<typeof useTheme>["chart"]) {
           6M Return: <strong>{p.momentum > 0 ? "+" : ""}{p.momentum}%</strong>
         </div>
         <div style={{ fontSize: 11, color: signalColor(p.signal), fontWeight: 600 }}>
-          {p.signal}
+          {displaySignal}
         </div>
       </div>
     );
@@ -78,6 +80,7 @@ function makeCustomTooltip(chart: ReturnType<typeof useTheme>["chart"]) {
 
 export default function ScatterPlot({ metrics }: Props) {
   const { chart } = useTheme();
+  const { t } = useLanguage();
 
   const data: ScatterPoint[] = metrics
     .filter((m) => m.alphaCagr != null && m.ret6m != null)
@@ -89,7 +92,7 @@ export default function ScatterPlot({ metrics }: Props) {
       signal:   m.signal,
     }));
 
-  const CustomTooltip = makeCustomTooltip(chart);
+  const CustomTooltip = makeCustomTooltip(chart, t.signalLabels);
 
   return (
     <div style={{ margin: "8px 0 32px" }}>
@@ -143,7 +146,7 @@ export default function ScatterPlot({ metrics }: Props) {
           {["🟢 Hold", "🟣 Take Profit", "🔵 Buy More", "🟡 Watch", "🔴 Sell", "⏳ Too Early"].map(
             (s) => (
               <span key={s} style={{ color: signalColor(s), fontWeight: 500 }}>
-                ● {s}
+                ● {t.signalLabels[s] ?? s}
               </span>
             )
           )}
