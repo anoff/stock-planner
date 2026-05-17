@@ -92,6 +92,8 @@ const ja: Translations = {
   colSignal: 'シグナル',
   tooEarlyLabel:
     '⏳ 保有期間3ヶ月未満 — 総リターン順',
+  closedPositionsGroupLabel:
+    '⬛ 決済済み — 全売却済みポジション、実現CAGR順',
   signalLabels: {
     '⏳ Too Early':   '⏳ 保有期間短い',
     '🟢 Hold':        '🟢 保持',
@@ -99,6 +101,7 @@ const ja: Translations = {
     '🔵 Buy More':    '🔵 追加購入',
     '🟡 Watch':       '🟡 注目',
     '🔴 Sell':        '🔴 売却',
+    '⬛ Closed':      '⬛ 決済済み',
   },
 
   // ── Drop zone ─────────────────────────────────────────────────────────────
@@ -122,6 +125,8 @@ const ja: Translations = {
   show: '▼ 表示',
   colFirstBuy: '最初の購入',
   colLastSell: '最後の売却',
+  showFullHistory: '📂 全履歴',
+  showActiveOnly: '📊 アクティブのみ',
 
   // ── Ticker input ──────────────────────────────────────────────────────────
   labelTickers: 'ティッカー',

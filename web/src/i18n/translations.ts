@@ -78,6 +78,7 @@ export interface Translations {
   colScore: string;
   colSignal: string;
   tooEarlyLabel: string;
+  closedPositionsGroupLabel: string;
   signalLabels: Record<string, string>;
 
   // ── Drop zone ─────────────────────────────────────────────────────────────
@@ -100,6 +101,8 @@ export interface Translations {
   show: string;
   colFirstBuy: string;
   colLastSell: string;
+  showFullHistory: string;
+  showActiveOnly: string;
 
   // ── Ticker input ──────────────────────────────────────────────────────────
   labelTickers: string;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { aggregatePositions, calculateMetrics, computeClosedPositions } from "../utils/metrics";
+import { aggregatePositions, calculateMetrics, closedToMetrics, computeClosedPositions } from "../utils/metrics";
 import type { Trade, PriceData } from "../utils/types";
 
 describe("aggregatePositions", () => {
@@ -522,3 +522,148 @@ describe("calculateMetrics", () => {
   });
 });
 
+
+describe("closedToMetrics", () => {
+  const now = new Date();
+  const buyDate = new Date(now.getTime() - 400 * 24 * 60 * 60 * 1000);
+  const sellDate = new Date(now.getTime() - 50 * 24 * 60 * 60 * 1000);
+
+  const trades: Trade[] = [
+    {
+      date: buyDate,
+      tickerCode: "7267",
+      name: "Honda",
+      yfTicker: "7267.T",
+      qty: 100,
+      price: 1500,
+      amount: 150000,
+      side: "buy",
+    },
+    {
+      date: sellDate,
+      tickerCode: "7267",
+      name: "Honda",
+      yfTicker: "7267.T",
+      qty: 100,
+      price: 1800,
+      amount: 180000,
+      side: "sell",
+    },
+  ];
+
+  const priceData: PriceData = {
+    "7267.T": [
+      { date: buyDate,  close: 1500 },
+      { date: sellDate, close: 1800 },
+    ],
+    "^GSPC": [
+      { date: buyDate,  close: 4000 },
+      { date: sellDate, close: 4200 },
+    ],
+  };
+
+  it("maps a ClosedPosition to PositionMetrics with signal '⬛ Closed'", () => {
+    const closed = computeClosedPositions(trades);
+    expect(closed).toHaveLength(1);
+
+    const metrics = closedToMetrics(closed, priceData);
+    expect(metrics).toHaveLength(1);
+
+    const m = metrics[0];
+    expect(m.signal).toBe("⬛ Closed");
+    expect(m.yfTicker).toBe("7267.T");
+    expect(m.name).toBe("Honda");
+  });
+
+  it("sets totalCost = totalBuyCost and currentValue = totalSellProceeds", () => {
+    const closed = computeClosedPositions(trades);
+    const metrics = closedToMetrics(closed, priceData);
+    const m = metrics[0];
+    expect(m.totalCost).toBeCloseTo(150000);
+    expect(m.currentValue).toBeCloseTo(180000);
+    // profit = proceeds - cost
+    expect(m.currentValue - m.totalCost).toBeCloseTo(30000);
+  });
+
+  it("populates realized totalReturn, daysHeld, and cagr", () => {
+    const closed = computeClosedPositions(trades);
+    const metrics = closedToMetrics(closed, priceData);
+    const m = metrics[0];
+    expect(m.totalReturn).toBeCloseTo(0.2); // (180000-150000)/150000
+    expect(m.daysHeld).toBeGreaterThan(0);
+    expect(m.cagr).toBeGreaterThan(0);
+  });
+
+  it("sets all forward-looking fields to null", () => {
+    const closed = computeClosedPositions(trades);
+    const metrics = closedToMetrics(closed, priceData);
+    const m = metrics[0];
+    expect(m.ret1m).toBeNull();
+    expect(m.ret6m).toBeNull();
+    expect(m.bmRet1m).toBeNull();
+    expect(m.bmRet6m).toBeNull();
+    expect(m.alpha1m).toBeNull();
+    expect(m.alpha6m).toBeNull();
+    expect(m.fuzzyScore).toBe(0);
+  });
+
+  it("computes benchmark return and alphaCagr when price data is available", () => {
+    const closed = computeClosedPositions(trades);
+    const metrics = closedToMetrics(closed, priceData, "^GSPC");
+    const m = metrics[0];
+    expect(m.bmRetBuy).not.toBeNull();
+    expect(m.bmCagr).not.toBeNull();
+    expect(m.alphaCagr).not.toBeNull();
+    // bmRetBuy ≈ (4200-4000)/4000 = +5%
+    expect(m.bmRetBuy).toBeCloseTo(0.05);
+  });
+
+  it("handles missing benchmark price data gracefully (null alpha)", () => {
+    const closed = computeClosedPositions(trades);
+    const metrics = closedToMetrics(closed, {}, "^GSPC");
+    const m = metrics[0];
+    expect(m.bmRetBuy).toBeNull();
+    expect(m.bmCagr).toBeNull();
+    expect(m.alphaCagr).toBeNull();
+  });
+
+  it("repurposes lastBuyDate as lastSellDate for stable row key generation", () => {
+    const closed = computeClosedPositions(trades);
+    const metrics = closedToMetrics(closed, priceData);
+    const m = metrics[0];
+    // lastBuyDate should equal the lastSellDate of the closed position
+    expect(m.lastBuyDate.getTime()).toBe(closed[0].lastSellDate.getTime());
+  });
+
+  it("handles multiple closed rounds for the same ticker with distinct keys", () => {
+    const now2 = new Date();
+    const buy1 = new Date(now2.getTime() - 800 * 24 * 60 * 60 * 1000);
+    const sell1 = new Date(now2.getTime() - 500 * 24 * 60 * 60 * 1000);
+    const buy2 = new Date(now2.getTime() - 400 * 24 * 60 * 60 * 1000);
+    const sell2 = new Date(now2.getTime() - 100 * 24 * 60 * 60 * 1000);
+
+    const multiRoundTrades: Trade[] = [
+      { date: buy1,  tickerCode: "7267", name: "Honda", yfTicker: "7267.T", qty: 100, price: 1000, amount: 100000, side: "buy" },
+      { date: sell1, tickerCode: "7267", name: "Honda", yfTicker: "7267.T", qty: 100, price: 1200, amount: 120000, side: "sell" },
+      { date: buy2,  tickerCode: "7267", name: "Honda", yfTicker: "7267.T", qty: 80,  price: 1300, amount: 104000, side: "buy" },
+      { date: sell2, tickerCode: "7267", name: "Honda", yfTicker: "7267.T", qty: 80,  price: 1500, amount: 120000, side: "sell" },
+    ];
+
+    const closed = computeClosedPositions(multiRoundTrades);
+    expect(closed).toHaveLength(2);
+
+    const metrics = closedToMetrics(closed, {});
+    expect(metrics).toHaveLength(2);
+    expect(metrics[0].signal).toBe("⬛ Closed");
+    expect(metrics[1].signal).toBe("⬛ Closed");
+
+    // lastBuyDate (repurposed as lastSellDate) should differ between the two rows
+    const keys = metrics.map((m) => `closed-${m.yfTicker}-${m.lastBuyDate.getTime()}`);
+    expect(new Set(keys).size).toBe(2);
+  });
+
+  it("returns empty array for no closed positions", () => {
+    const metrics = closedToMetrics([], priceData);
+    expect(metrics).toHaveLength(0);
+  });
+});
