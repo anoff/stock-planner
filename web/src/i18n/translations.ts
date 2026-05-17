@@ -36,6 +36,19 @@ export interface Translations {
   showCharts: string;
   footer: string;
 
+  // ── Benchmark row ─────────────────────────────────────────────────────────
+  referenceBenchmark: string;
+
+  // ── Outperformance chart ──────────────────────────────────────────────────
+  outperformanceBreakdown: string;
+  outperformanceDesc: (benchmark: string) => string;
+  tooltipOutperforming: string;
+  tooltipUnderperforming: string;
+  barAlphaCagrCount: string;
+  barAlphaCagrVolume: string;
+  barCagrCount: string;
+  barCagrVolume: string;
+
   // ── Summary card ──────────────────────────────────────────────────────────
   portfolioSummary: string;
   labelPositions: string;

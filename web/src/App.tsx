@@ -206,7 +206,7 @@ function App() {
             {state.stage === "idle" && (
               <>
                 <div className="benchmark-row">
-                  <label htmlFor="benchmark-select">Reference benchmark:</label>
+                  <label htmlFor="benchmark-select">{t.referenceBenchmark}</label>
                   <select
                     id="benchmark-select"
                     className="styled-select"

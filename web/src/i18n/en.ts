@@ -45,6 +45,20 @@ const en: Translations = {
   footer:
     'Data sourced from Yahoo Finance. All calculations are performed in the browser.',
 
+  // ── Benchmark row ─────────────────────────────────────────────────────────
+  referenceBenchmark: 'Reference benchmark:',
+
+  // ── Outperformance chart ──────────────────────────────────────────────────
+  outperformanceBreakdown: '📊 Outperformance Breakdown',
+  outperformanceDesc: (benchmark) =>
+    `Share of positions (or portfolio volume) beating the benchmark / being profitable. Excludes ⏳ Too Early positions. Benchmark: ${benchmark}.`,
+  tooltipOutperforming: 'Outperforming',
+  tooltipUnderperforming: 'Underperforming',
+  barAlphaCagrCount: 'α CAGR\n(count)',
+  barAlphaCagrVolume: 'α CAGR\n(volume)',
+  barCagrCount: 'CAGR\n(count)',
+  barCagrVolume: 'CAGR\n(volume)',
+
   // ── Summary card ──────────────────────────────────────────────────────────
   portfolioSummary: '📋 Portfolio Summary',
   labelPositions: 'Positions',

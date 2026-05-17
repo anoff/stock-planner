@@ -45,6 +45,20 @@ const ja: Translations = {
   footer:
     'データはYahoo Financeより。すべての計算はブラウザで実行されます。',
 
+  // ── Benchmark row ─────────────────────────────────────────────────────────
+  referenceBenchmark: 'リファレンスベンチマーク:',
+
+  // ── Outperformance chart ──────────────────────────────────────────────────
+  outperformanceBreakdown: '📊 アウトパフォーマンス分析',
+  outperformanceDesc: (benchmark) =>
+    `ベンチマークを上回った、または利益が出たポジションの割合（ポートフォリオ比率でも算出）。⏳ 保有期間3ヶ月未満のポジションを除く。ベンチマーク: ${benchmark}。`,
+  tooltipOutperforming: 'アウトパフォーム',
+  tooltipUnderperforming: 'アンダーパフォーム',
+  barAlphaCagrCount: 'α CAGR\n(件数)',
+  barAlphaCagrVolume: 'α CAGR\n(金額)',
+  barCagrCount: 'CAGR\n(件数)',
+  barCagrVolume: 'CAGR\n(金額)',
+
   // ── Summary card ──────────────────────────────────────────────────────────
   portfolioSummary: '📋 ポートフォリオサマリー',
   labelPositions: 'ポジション数',
