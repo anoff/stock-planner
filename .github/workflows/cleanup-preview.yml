@@ -1,0 +1,23 @@
+name: Cleanup PR Preview – Web App
+
+on:
+  pull_request:
+    types: [closed]
+    paths:
+      - "web/**"
+
+permissions:
+  contents: write
+  pull-requests: write
+  deployments: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: web/dist
+          action: auto

@@ -268,7 +268,7 @@ GitHub Actions (push to main / manual trigger)
                            VITE_CORS_PROXY is not set in build)
 ```
 
-**PR Preview:** every PR touching `web/` gets a preview at `https://<org>.github.io/stock-planner/pr-preview/pr-<N>/`, deployed by the same GitHub Actions workflow. Previews are cleaned up on PR close.
+**PR Preview:** every PR touching `web/` gets a preview at `https://<org>.github.io/stock-planner/pr-preview/pr-<N>/`, deployed by `.github/workflows/preview-web.yml`. When the PR is closed (merged or abandoned), `.github/workflows/cleanup-preview.yml` automatically removes the preview directory from `gh-pages`, ensuring no stale preview deployments linger after a merge.
 
 ---
 
