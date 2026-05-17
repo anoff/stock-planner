@@ -241,6 +241,42 @@
   border-color: var(--accent-hover);
 }
 
+/* ── History toggle (pill-style) ─────────────────────────────────────────── */
+
+.history-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 20px;
+  border-radius: 99px;
+  border: 2px solid var(--accent-light);
+  background: var(--bg-surface);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.history-toggle:hover {
+  background: var(--accent-surface);
+  border-color: var(--accent);
+}
+
+.history-toggle--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.history-toggle--active:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: #fff;
+}
+
 /* ── Styled select ────────────────────────────────────────────────────────── */
 
 .styled-select {

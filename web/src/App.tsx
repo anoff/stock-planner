@@ -293,7 +293,7 @@ function App() {
                 {state.closed.length > 0 && (
                   <div style={{ display: "flex", justifyContent: "center", margin: "12px 0 4px" }}>
                     <button
-                      className={`btn${showFullHistory ? " btn-active" : ""}`}
+                      className={`history-toggle${showFullHistory ? " history-toggle--active" : ""}`}
                       onClick={() => setShowFullHistory((v) => !v)}
                       title={showFullHistory ? t.showActiveOnly : t.showFullHistory}
                     >
@@ -385,7 +385,23 @@ function App() {
                                   </div>
                                 );
                               })}
-                              {/* Closed position charts (full history mode) */}
+                              {/* Closed position separator + charts (full history mode) */}
+                              {showFullHistory && state.closed.length > 0 && (
+                                <div
+                                  style={{
+                                    gridColumn: "1 / -1",
+                                    padding: "5px 12px",
+                                    backgroundColor: "var(--accent-surface)",
+                                    color: "var(--text-muted)",
+                                    fontSize: 11,
+                                    fontStyle: "italic",
+                                    borderTop: "2px solid var(--border-strong)",
+                                    borderRadius: 4,
+                                  }}
+                                >
+                                  {t.closedPositionsGroupLabel}
+                                </div>
+                              )}
                               {showFullHistory && state.closed.map((p) => (
                                 <div
                                   key={`closed-${p.yfTicker}-${p.lastSellDate.getTime()}`}

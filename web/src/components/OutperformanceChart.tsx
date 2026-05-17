@@ -33,7 +33,7 @@ interface BarDatum {
 }
 
 function buildData(metrics: PositionMetrics[], names: [string, string, string, string]): BarDatum[] {
-  const eligible = metrics.filter((m) => m.signal !== "⏳ Too Early" && m.signal !== "⬛ Closed");
+  const eligible = metrics.filter((m) => m.signal !== "⏳ Too Early");
 
   // Alpha CAGR by count
   const acOut = eligible.filter((m) => m.alphaCagr != null && m.alphaCagr > 0).length;
@@ -159,7 +159,7 @@ export default function OutperformanceChart({ metrics, benchmark }: Props) {
   const colorOut = theme === "dark" ? COLOR_OUT_DARK : COLOR_OUT_LIGHT;
   const colorUnder = theme === "dark" ? COLOR_UNDER_DARK : COLOR_UNDER_LIGHT;
 
-  const eligible = metrics.filter((m) => m.signal !== "⏳ Too Early" && m.signal !== "⬛ Closed");
+  const eligible = metrics.filter((m) => m.signal !== "⏳ Too Early");
   if (eligible.length === 0) return null;
 
   const barNames: [string, string, string, string] = [
