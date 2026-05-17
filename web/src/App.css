@@ -1,3 +1,41 @@
+/* ── GitHub corner banner ─────────────────────────────────────────────────── */
+
+.github-corner {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 200;
+  color: var(--bg);
+  border: 0;
+  line-height: 0;
+}
+
+.github-corner svg {
+  fill: var(--accent);
+  color: var(--bg);
+  transition: fill 0.15s;
+}
+
+.github-corner:hover svg {
+  fill: var(--accent-hover);
+}
+
+.github-corner-arm {
+  transform-origin: 130px 106px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .github-corner:hover .github-corner-arm {
+    animation: github-corner-wave 0.56s ease-in-out;
+  }
+}
+
+@keyframes github-corner-wave {
+  0%,  100% { transform: rotate(0deg); }
+  20%,  60%  { transform: rotate(-25deg); }
+  40%,  80%  { transform: rotate(10deg); }
+}
+
 .app {
   max-width: 1200px;
   margin: 0 auto;
@@ -311,6 +349,31 @@
   border-top: 1px solid var(--border);
   color: var(--text-muted);
   font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-footer-desc {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.app-footer-privacy {
+  font-size: 12px;
+}
+
+.app-footer-links a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.app-footer-links a:hover {
+  text-decoration: underline;
+}
+
+.app-footer-copy {
+  font-size: 12px;
 }
 
 /* ── Research page ───────────────────────────────────────────────────────────── */
