@@ -625,7 +625,7 @@
   font-size: 12px;
   line-height: 1.45;
   white-space: normal;
-  width: 220px;
+  width: 260px;
   z-index: 100;
   pointer-events: none;
   opacity: 0;
@@ -657,7 +657,7 @@
     left: auto;
     right: 0;
     transform: none;
-    width: 180px;
+    width: 220px;
   }
   .metric-desc-icon::before {
     left: auto;
