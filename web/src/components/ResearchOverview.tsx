@@ -1,5 +1,6 @@
 import type { ResearchResult } from '../utils/research';
 import { fmtPct, SIGNAL_COLOR, CATEGORY_ABBREVS, categoryIcons } from '../utils/scoring';
+import { useLanguage } from '../i18n';
 
 interface Props {
   results: ResearchResult[];
@@ -35,25 +36,26 @@ function SignalCell({ result }: { result: ResearchResult }) {
 
 export default function ResearchOverview({ results, onSelectTicker, selectedTicker }: Props) {
   const abbrevs = CATEGORY_ABBREVS.join(', ');
+  const { t } = useLanguage();
 
   return (
     <div className="research-overview">
-      <h2 className="research-section-title">Overview</h2>
+      <h2 className="research-section-title">{t.overview}</h2>
       <div className="table-scroll">
         <table className="research-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Ticker</th>
-              <th>CCY</th>
-              <th style={{ textAlign: 'right' }}>5Y CAGR</th>
-              <th style={{ textAlign: 'right' }}>3Y CAGR</th>
-              <th style={{ textAlign: 'right' }}>1Y CAGR</th>
-              <th style={{ textAlign: 'right' }}>α 1Y</th>
-              <th style={{ textAlign: 'right' }}>6M</th>
-              <th style={{ textAlign: 'right' }}>1M</th>
-              <th style={{ textAlign: 'right' }}>Score</th>
-              <th>Signal ({abbrevs})</th>
+              <th>{t.colName}</th>
+              <th>{t.colTicker}</th>
+              <th>{t.colCcy}</th>
+              <th style={{ textAlign: 'right' }}>{t.colCagr5y}</th>
+              <th style={{ textAlign: 'right' }}>{t.colCagr3y}</th>
+              <th style={{ textAlign: 'right' }}>{t.colCagr1y}</th>
+              <th style={{ textAlign: 'right' }}>{t.colAlpha1y}</th>
+              <th style={{ textAlign: 'right' }}>{t.col6mShort}</th>
+              <th style={{ textAlign: 'right' }}>{t.col1mShort}</th>
+              <th style={{ textAlign: 'right' }}>{t.colScore}</th>
+              <th>{t.signalWithAbbrevs(abbrevs)}</th>
             </tr>
           </thead>
           <tbody>
@@ -64,7 +66,7 @@ export default function ResearchOverview({ results, onSelectTicker, selectedTick
                   key={r.ticker}
                   className={`research-table-row${isSelected ? ' research-table-row--selected' : ''}`}
                   onClick={() => onSelectTicker(isSelected ? null : r.ticker)}
-                  title="Click to expand detail"
+                  title={t.clickToExpand}
                 >
                   <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {r.name}

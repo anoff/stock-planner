@@ -1,5 +1,6 @@
 import { useState, type KeyboardEvent } from 'react';
 import { BENCHMARK_OPTIONS } from '../utils/types';
+import { useLanguage } from '../i18n';
 
 interface Props {
   onSubmit: (tickers: string[], benchmark: string) => void;
@@ -9,6 +10,7 @@ interface Props {
 export default function TickerInput({ onSubmit, loading = false }: Props) {
   const [tickerText, setTickerText] = useState('');
   const [benchmark, setBenchmark] = useState(BENCHMARK_OPTIONS[0].ticker);
+  const { t } = useLanguage();
 
   function handleSubmit() {
     const tickers = tickerText
@@ -28,7 +30,7 @@ export default function TickerInput({ onSubmit, loading = false }: Props) {
       <div className="ticker-input-row">
         <div className="ticker-input-group">
           <label htmlFor="tickers" className="ticker-input-label">
-            Tickers
+            {t.labelTickers}
           </label>
           <input
             id="tickers"
@@ -45,7 +47,7 @@ export default function TickerInput({ onSubmit, loading = false }: Props) {
 
         <div className="ticker-input-group ticker-benchmark-group">
           <label htmlFor="benchmark" className="ticker-input-label">
-            Benchmark
+            {t.labelBenchmark}
           </label>
           <select
             id="benchmark"
@@ -65,12 +67,11 @@ export default function TickerInput({ onSubmit, loading = false }: Props) {
           onClick={handleSubmit}
           disabled={loading || tickerText.trim() === ''}
         >
-          {loading ? 'Loading…' : 'Analyze'}
+          {loading ? t.analyzing : t.analyze}
         </button>
       </div>
       <p className="ticker-input-hint">
-        Comma or space separated Yahoo Finance tickers. Fetches 5 years of price history
-        plus fundamental data.
+        {t.tickerInputHint}
       </p>
     </div>
   );

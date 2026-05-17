@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ClosedPosition, PriceData } from "../utils/types";
 import PositionChart from "./PositionChart";
 import { useTheme } from "../theme";
+import { useLanguage } from "../i18n";
 
 interface Props {
   positions: ClosedPosition[];
@@ -43,6 +44,7 @@ export default function ClosedPositions({ positions, priceData }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [chartsVisible, setChartsVisible] = useState(false);
   const { maskValues } = useTheme();
+  const { t } = useLanguage();
 
   if (positions.length === 0) return null;
 
@@ -52,8 +54,8 @@ export default function ClosedPositions({ positions, priceData }: Props) {
         className="closed-toggle"
         onClick={() => setExpanded((v) => !v)}
       >
-        🗂️ Closed Positions ({positions.length})
-        <span className="muted">{expanded ? "▲ hide" : "▼ show"}</span>
+        {t.closedPositions(positions.length)}
+        <span className="muted">{expanded ? t.hide : t.show}</span>
       </div>
 
       {expanded && (
@@ -63,8 +65,8 @@ export default function ClosedPositions({ positions, priceData }: Props) {
               <thead>
                 <tr>
                   {[
-                    "Name", "Ticker", "First Buy", "Last Sell",
-                    "Days Held", "Profit", "Total Return", "CAGR",
+                    t.colName, t.colTicker, t.colFirstBuy, t.colLastSell,
+                    t.colDaysHeld, t.colProfit, t.colTotalReturn, t.colCagr,
                   ].map((h) => (
                     <th key={h}>{h}</th>
                   ))}
@@ -107,7 +109,7 @@ export default function ClosedPositions({ positions, priceData }: Props) {
             onClick={() => setChartsVisible((v) => !v)}
             style={{ marginBottom: 12 }}
           >
-            {chartsVisible ? "Hide Charts" : "📈 Show Charts"}
+            {chartsVisible ? t.hideCharts : t.showCharts}
           </button>
 
           {chartsVisible && (
