@@ -71,6 +71,21 @@
   gap: 6px;
 }
 
+@media (max-width: 600px) {
+  .app-header h1 {
+    /* Reserve space so the fixed GitHub corner (80×80 px) doesn't overlap the title */
+    padding-top: 56px;
+  }
+
+  .header-controls {
+    /* Take the controls out of the absolute layer and flow them naturally */
+    position: static;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+}
+
 /* ── Theme toggle ─────────────────────────────────────────────────────────── */
 
 .theme-toggle {
@@ -838,6 +853,8 @@
   padding: 4px 8px;
   border-bottom: 1px solid var(--border);
   color: var(--text);
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .detail-label {
