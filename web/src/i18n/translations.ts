@@ -127,6 +127,8 @@ export interface Translations {
   categoryNames: Record<string, string>;
   /** Short abbreviations for each scoring category (used in column headers). */
   categoryAbbrevs: Record<string, string>;
+  /** Brief descriptions for each scoring category used as tooltips. */
+  categoryDescriptions: Record<string, string>;
 
   // ── Research metrics ──────────────────────────────────────────────────────
   /** Display labels for each raw metric, keyed by metric identifier. */

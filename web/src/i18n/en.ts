@@ -159,6 +159,13 @@ const en: Translations = {
     Growth: 'Growth',
     Momentum: 'Mom',
   },
+  categoryDescriptions: {
+    Valuation: 'Is the stock cheap or expensive? Compares price to earnings, book value and cash flow. A low score means the market is asking a premium; a high score means you may be getting the business at a discount.',
+    Quality:   'Is this a good business? Measures profitability (ROE, margins) and dividend sustainability. High-quality companies turn shareholder money into profit efficiently and can keep rewarding investors.',
+    Health:    'Can the company handle hard times? Looks at debt levels and the ability to cover short-term bills. A healthy balance sheet means the company is unlikely to run into financial trouble if revenues dip.',
+    Growth:    'Is the business getting bigger? Tracks earnings and revenue growth rates. Consistent growth signals expanding demand, pricing power, and a widening competitive moat.',
+    Momentum:  'Has the stock been outperforming lately? Uses recent price returns vs the benchmark. Strong momentum means buyers are in control — often a sign that fundamentals are improving and the market is noticing.',
+  },
 
   // ── Research metrics ──────────────────────────────────────────────────────
   metricLabels: {

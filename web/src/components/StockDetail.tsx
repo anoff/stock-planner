@@ -29,16 +29,31 @@ function ScoreRow({
   score,
   label,
   icon,
+  description,
 }: {
   score: number;
   label: string;
   icon: string;
+  description?: string;
 }) {
   const { t } = useLanguage();
   const color = score > 70 ? '#22863a' : score > 50 ? '#b59000' : '#cb2431';
   return (
     <tr>
-      <td>{icon} {label}</td>
+      <td>
+        <span className="metric-label-with-desc">
+          {icon} {label}
+          {description && (
+            <span
+              className="metric-desc-icon"
+              data-tooltip={description}
+              aria-label={description}
+              tabIndex={0}
+              role="tooltip"
+            >ⓘ</span>
+          )}
+        </span>
+      </td>
       <td style={{ textAlign: 'right', color, fontWeight: 600 }}>{score.toFixed(1)}</td>
       <td style={{ color: '#6b7280' }}>{
         score > 80 ? t.scoreStrong : score > 60 ? t.scoreGood : score > 40 ? t.scoreNeutral : score > 20 ? t.scoreWeak : t.scorePoor
@@ -130,6 +145,7 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
                   score={cat.score}
                   label={t.categoryNames[catName] ?? catName}
                   icon={cat.icon}
+                  description={t.categoryDescriptions[catName]}
                 />
               ))}
               <tr style={{ borderTop: '2px solid #e5e7eb' }}>
