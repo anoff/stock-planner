@@ -7,6 +7,7 @@ import { fetchPriceData } from '../utils/prices';
 import { computeResearchMetrics } from '../utils/research';
 import type { ResearchResult, ResearchProgress } from '../utils/research';
 import type { PriceData } from '../utils/types';
+import { useLanguage } from '../i18n';
 
 type PageState =
   | { stage: 'idle' }
@@ -18,6 +19,7 @@ type PageState =
 export default function ResearchPage() {
   const [state, setState] = useState<PageState>({ stage: 'idle' });
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   const handleSubmit = useCallback(async (tickers: string[], benchmark: string) => {
     setSelectedTicker(null);
@@ -31,7 +33,7 @@ export default function ResearchPage() {
       });
 
       if (Object.keys(priceData).length === 0) {
-        setState({ stage: 'error', message: 'Could not fetch any price data. Check ticker symbols and network connection.' });
+        setState({ stage: 'error', message: t.noPriceData });
         return;
       }
 
@@ -48,18 +50,18 @@ export default function ResearchPage() {
       );
 
       if (results.length === 0) {
-        setState({ stage: 'error', message: 'No results — price data may be unavailable for the given tickers.' });
+        setState({ stage: 'error', message: t.noResults });
         return;
       }
 
       const warnings: string[] = [];
       // Exclude the benchmark from price failure warnings (it's not shown in results)
-      const failedUserPrices = failedPrices.filter(t => tickers.includes(t));
+      const failedUserPrices = failedPrices.filter(tp => tickers.includes(tp));
       if (failedUserPrices.length > 0) {
-        warnings.push(`Price data unavailable for: ${failedUserPrices.join(', ')}`);
+        warnings.push(t.pricesUnavailableFor(failedUserPrices.join(', ')));
       }
       if (failedInfo.length > 0) {
-        warnings.push(`Fundamental data unavailable for: ${failedInfo.join(', ')} — scores based on price metrics only`);
+        warnings.push(t.fundamentalsUnavailableFor(failedInfo.join(', ')));
       }
 
       setState({ stage: 'done', results, tickers, benchmark, priceData, warnings });
@@ -69,7 +71,7 @@ export default function ResearchPage() {
         message: err instanceof Error ? err.message : String(err),
       });
     }
-  }, []);
+  }, [t]);
 
   const handleSelectTicker = useCallback((ticker: string | null) => {
     setSelectedTicker((prev) => (prev === ticker ? null : ticker));
@@ -91,8 +93,8 @@ export default function ResearchPage() {
         <div className="status">
           <div>
             {state.stage === 'fetching-prices'
-              ? `Fetching price history… ${state.progress}/${state.total}`
-              : `Fetching fundamentals… ${state.progress}/${state.total}`}
+              ? t.fetchingPrices(state.progress, state.total)
+              : t.fetchingFundamentals(state.progress, state.total)}
           </div>
           <div className="progress-bar">
             <div
@@ -106,7 +108,7 @@ export default function ResearchPage() {
       {state.stage === 'error' && (
         <div className="error">
           <p>{state.message}</p>
-          <button onClick={() => setState({ stage: 'idle' })}>Try again</button>
+          <button onClick={() => setState({ stage: 'idle' })}>{t.tryAgain}</button>
         </div>
       )}
 
@@ -135,21 +137,21 @@ export default function ResearchPage() {
           <ScoreChart results={state.results} />
 
           <div className="research-legend">
-            <h2 className="research-section-title">Signal Legend</h2>
+            <h2 className="research-section-title">{t.signalLegend}</h2>
             <div className="research-legend-grid">
               <div>
-                <h4 className="detail-section-title">Final Signal</h4>
+                <h4 className="detail-section-title">{t.finalSignalLabel}</h4>
                 <table className="detail-table">
                   <thead>
-                    <tr><th>Signal</th><th>Score</th><th>Action</th></tr>
+                    <tr><th>{t.signalCol}</th><th>{t.scoreCol}</th><th>{t.actionCol}</th></tr>
                   </thead>
                   <tbody>
                     {[
-                      ['STRONG_BUY', '> 85', 'High conviction buy', '#22863a'],
-                      ['BUY',        '70–85', 'Consider buying',     '#3b82f6'],
-                      ['HOLD',       '50–70', 'Monitor, no action',  '#b59000'],
-                      ['SELL',       '35–50', 'Consider avoiding',   '#d97706'],
-                      ['STRONG_SELL','< 35',  'Avoid',               '#cb2431'],
+                      ['STRONG_BUY', '> 85',  t.strongBuyAction, '#22863a'],
+                      ['BUY',        '70–85', t.buyAction,        '#3b82f6'],
+                      ['HOLD',       '50–70', t.holdAction,       '#b59000'],
+                      ['SELL',       '35–50', t.sellAction,       '#d97706'],
+                      ['STRONG_SELL','< 35',  t.strongSellAction, '#cb2431'],
                     ].map(([sig, range, action, color]) => (
                       <tr key={sig as string}>
                         <td style={{ fontWeight: 600, color: color as string }}>{sig as string}</td>
@@ -161,9 +163,9 @@ export default function ResearchPage() {
                 </table>
               </div>
               <div>
-                <h4 className="detail-section-title">Category Icons</h4>
+                <h4 className="detail-section-title">{t.categoryIconsLabel}</h4>
                 <table className="detail-table">
-                  <thead><tr><th>Icon</th><th>Label</th><th>Score</th></tr></thead>
+                  <thead><tr><th>{t.iconCol}</th><th>{t.labelCol}</th><th>{t.scoreCol}</th></tr></thead>
                   <tbody>
                     {[
                       ['🔵', 'STRONG',  '> 80'],
@@ -183,10 +185,7 @@ export default function ResearchPage() {
               </div>
             </div>
             <p className="research-disclaimer">
-              Data sourced from Yahoo Finance via yahoo-finance2. Prices are split- and
-              dividend-adjusted closing prices. 6M/1M windows = 180/30 calendar days;
-              nearest prior trading-day close is used at both ends. Fundamental data is
-              best-effort and may be unavailable for some tickers.
+              {t.disclaimer}
             </p>
           </div>
         </>

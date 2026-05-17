@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import type { PositionMetrics } from "../utils/types";
 import { useTheme } from "../theme";
+import { useLanguage } from "../i18n";
 
 interface Props {
   metrics: PositionMetrics[];
@@ -24,13 +25,14 @@ const COLOR_UNDER_DARK = "#4c4577";
 
 interface BarDatum {
   name: string;
+  type: 'alpha' | 'cagr';
   out: number;   // 0-100
   under: number; // 0-100
   outCount: number;
   totalCount: number;
 }
 
-function buildData(metrics: PositionMetrics[]): BarDatum[] {
+function buildData(metrics: PositionMetrics[], names: [string, string, string, string]): BarDatum[] {
   const eligible = metrics.filter((m) => m.signal !== "⏳ Too Early");
 
   // Alpha CAGR by count
@@ -60,28 +62,32 @@ function buildData(metrics: PositionMetrics[]): BarDatum[] {
 
   return [
     {
-      name: "α CAGR\n(count)",
+      name: names[0],
+      type: 'alpha' as const,
       out: pct(acOut, acTotal),
       under: pct(acTotal - acOut, acTotal),
       outCount: acOut,
       totalCount: acTotal,
     },
     {
-      name: "α CAGR\n(volume)",
+      name: names[1],
+      type: 'alpha' as const,
       out: pct(avOut, avTotal),
       under: pct(avTotal - avOut, avTotal),
       outCount: Math.round((avOut / (avTotal || 1)) * 100),
       totalCount: 100,
     },
     {
-      name: "CAGR\n(count)",
+      name: names[2],
+      type: 'cagr' as const,
       out: pct(ccOut, ccTotal),
       under: pct(ccTotal - ccOut, ccTotal),
       outCount: ccOut,
       totalCount: ccTotal,
     },
     {
-      name: "CAGR\n(volume)",
+      name: names[3],
+      type: 'cagr' as const,
       out: pct(cvOut, cvTotal),
       under: pct(cvTotal - cvOut, cvTotal),
       outCount: Math.round((cvOut / (cvTotal || 1)) * 100),
@@ -101,15 +107,26 @@ function CustomTooltip({
   payload,
   label,
   isVolume,
+  labelOut,
+  labelUnder,
+  labelProfitable,
+  labelUnprofitable,
 }: {
   active?: boolean;
   payload?: TooltipPayload[];
   label?: string;
   isVolume?: boolean;
+  labelOut?: string;
+  labelUnder?: string;
+  labelProfitable?: string;
+  labelUnprofitable?: string;
 }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   const isVol = isVolume ?? (label?.includes("volume") ?? false);
+  const isAlpha = d.type === 'alpha';
+  const posLabel = isAlpha ? (labelOut ?? 'Outperforming') : (labelProfitable ?? 'Profitable');
+  const negLabel = isAlpha ? (labelUnder ?? 'Underperforming') : (labelUnprofitable ?? 'Unprofitable');
   return (
     <div
       style={{
@@ -126,10 +143,10 @@ function CustomTooltip({
         {label?.replace("\\n", " ")}
       </div>
       <div style={{ color: "var(--positive)" }}>
-        Outperforming: {d.out}%{!isVol ? ` (${d.outCount}/${d.totalCount})` : ""}
+        {posLabel}: {d.out}%{!isVol ? ` (${d.outCount}/${d.totalCount})` : ""}
       </div>
       <div style={{ color: "var(--text-muted)" }}>
-        Underperforming: {d.under}%
+        {negLabel}: {d.under}%
       </div>
     </div>
   );
@@ -137,6 +154,7 @@ function CustomTooltip({
 
 export default function OutperformanceChart({ metrics, benchmark }: Props) {
   const { theme, chart } = useTheme();
+  const { t } = useLanguage();
 
   const colorOut = theme === "dark" ? COLOR_OUT_DARK : COLOR_OUT_LIGHT;
   const colorUnder = theme === "dark" ? COLOR_UNDER_DARK : COLOR_UNDER_LIGHT;
@@ -144,14 +162,19 @@ export default function OutperformanceChart({ metrics, benchmark }: Props) {
   const eligible = metrics.filter((m) => m.signal !== "⏳ Too Early");
   if (eligible.length === 0) return null;
 
-  const data = buildData(metrics);
+  const barNames: [string, string, string, string] = [
+    t.barAlphaCagrCount,
+    t.barAlphaCagrVolume,
+    t.barCagrCount,
+    t.barCagrVolume,
+  ];
+  const data = buildData(metrics, barNames);
 
   return (
     <div style={{ margin: "28px 0" }}>
-      <div className="section-title">📊 Outperformance Breakdown</div>
+      <div className="section-title">{t.outperformanceBreakdown}</div>
       <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "-8px 0 14px" }}>
-        Share of positions (or portfolio volume) beating the benchmark / being profitable.
-        Excludes ⏳ Too Early positions. Benchmark: {benchmark}.
+        {t.outperformanceDesc(benchmark)}
       </p>
       <div
         className="chart-card"
@@ -173,15 +196,20 @@ export default function OutperformanceChart({ metrics, benchmark }: Props) {
               width={36}
             />
             <Tooltip
-              content={<CustomTooltip />}
+              content={<CustomTooltip
+                labelOut={t.tooltipOutperforming}
+                labelUnder={t.tooltipUnderperforming}
+                labelProfitable={t.tooltipProfitable}
+                labelUnprofitable={t.tooltipUnprofitable}
+              />}
               cursor={{ fill: theme === "dark" ? "rgba(167,139,250,0.07)" : "rgba(124,58,237,0.05)" }}
             />
-            <Bar dataKey="out" stackId="a" name="Outperforming" fill={colorOut} radius={[0, 0, 0, 0]}>
+            <Bar dataKey="out" stackId="a" name={t.tooltipOutperforming} fill={colorOut} radius={[0, 0, 0, 0]}>
               {data.map((_, i) => (
                 <Cell key={i} fill={colorOut} />
               ))}
             </Bar>
-            <Bar dataKey="under" stackId="a" name="Underperforming" fill={colorUnder} radius={[4, 4, 0, 0]}>
+            <Bar dataKey="under" stackId="a" name={t.tooltipUnderperforming} fill={colorUnder} radius={[4, 4, 0, 0]}>
               {data.map((_entry, i) => (
                 <Cell
                   key={i}
@@ -193,14 +221,14 @@ export default function OutperformanceChart({ metrics, benchmark }: Props) {
           </BarChart>
         </ResponsiveContainer>
         {/* Legend */}
-        <div style={{ display: "flex", gap: 16, justifyContent: "center", fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+        <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
           <span>
             <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: colorOut, marginRight: 5, verticalAlign: "middle" }} />
-            Outperforming
+            {t.tooltipOutperforming} (α) / {t.tooltipProfitable}
           </span>
           <span>
             <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: colorUnder, marginRight: 5, verticalAlign: "middle" }} />
-            Underperforming
+            {t.tooltipUnderperforming} (α) / {t.tooltipUnprofitable}
           </span>
         </div>
       </div>

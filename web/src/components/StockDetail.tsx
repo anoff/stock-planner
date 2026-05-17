@@ -6,6 +6,7 @@ import {
 } from '../utils/scoring';
 import type { PriceHistory } from '../utils/types';
 import PositionChart from './PositionChart';
+import { useLanguage } from '../i18n';
 
 interface Props {
   result: ResearchResult;
@@ -33,14 +34,14 @@ function ScoreRow({
   label: string;
   icon: string;
 }) {
+  const { t } = useLanguage();
   const color = score > 70 ? '#22863a' : score > 50 ? '#b59000' : '#cb2431';
   return (
     <tr>
       <td>{icon} {label}</td>
       <td style={{ textAlign: 'right', color, fontWeight: 600 }}>{score.toFixed(1)}</td>
       <td style={{ color: '#6b7280' }}>{
-        // small fuzzy text
-        score > 80 ? 'Strong' : score > 60 ? 'Good' : score > 40 ? 'Neutral' : score > 20 ? 'Weak' : 'Poor'
+        score > 80 ? t.scoreStrong : score > 60 ? t.scoreGood : score > 40 ? t.scoreNeutral : score > 20 ? t.scoreWeak : t.scorePoor
       }</td>
     </tr>
   );
@@ -51,6 +52,7 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
   const { finalSignal, finalScore, vetoed, vetoReasons, categories } = evaluation;
   const signalColor = SIGNAL_COLOR[finalSignal] ?? '#333';
   const signalAction = SIGNAL_ACTIONS[finalSignal] ?? '';
+  const { t } = useLanguage();
 
   return (
     <div className="stock-detail">
@@ -65,8 +67,8 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
           </h3>
           <div className="stock-detail-price">
             {result.currentPrice !== null
-              ? `${fmtPrice(result.currentPrice, currency)} — close of ${result.priceDate ?? '—'}`
-              : 'Price unavailable'}
+              ? `${fmtPrice(result.currentPrice, currency)} — ${t.closeOf(result.priceDate ?? '—')}`
+              : t.priceUnavailable}
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
@@ -96,7 +98,7 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
 
       {vetoed && vetoReasons.length > 0 && (
         <div className="stock-detail-veto">
-          <strong>Veto override:</strong>{' '}
+          <strong>{t.vetoOverride}</strong>{' '}
           {vetoReasons.join('; ')}
         </div>
       )}
@@ -104,13 +106,13 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
       <div className="stock-detail-grid">
         {/* Scoring breakdown */}
         <div>
-          <h4 className="detail-section-title">Scoring Breakdown</h4>
+          <h4 className="detail-section-title">{t.scoringBreakdown}</h4>
           <table className="detail-table">
             <thead>
               <tr>
-                <th>Category</th>
-                <th style={{ textAlign: 'right' }}>Score</th>
-                <th>Label</th>
+                <th>{t.colCategory}</th>
+                <th style={{ textAlign: 'right' }}>{t.colScore}</th>
+                <th>{t.colLabel}</th>
               </tr>
             </thead>
             <tbody>
@@ -123,7 +125,7 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
                 />
               ))}
               <tr style={{ borderTop: '2px solid #e5e7eb' }}>
-                <td style={{ fontWeight: 700 }}>Final</td>
+                <td style={{ fontWeight: 700 }}>{t.finalLabel}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: signalColor }}>
                   {finalScore.toFixed(1)}
                 </td>
@@ -135,7 +137,7 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
 
         {/* Price & performance */}
         <div>
-          <h4 className="detail-section-title">Price &amp; Performance</h4>
+          <h4 className="detail-section-title">{t.pricePerformance}</h4>
           <table className="detail-table">
             <tbody>
               <PctRow label="5Y CAGR" value={result.cagr5y} />
@@ -149,8 +151,8 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
               <PctRow label="Return 6M" value={result.ret6m} />
               <PctRow label="Return 1M" value={result.ret1m} />
               <tr>
-                <td className="detail-label">Data available</td>
-                <td style={{ textAlign: 'right' }}>{result.dataMonths.toFixed(0)} months</td>
+                <td className="detail-label">{t.dataAvailable}</td>
+                <td style={{ textAlign: 'right' }}>{result.dataMonths.toFixed(0)} {t.months}</td>
               </tr>
             </tbody>
           </table>
@@ -158,15 +160,15 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
       </div>
 
       {/* Metric details per category */}
-      <h4 className="detail-section-title" style={{ marginTop: 16 }}>Metric Details</h4>
+      <h4 className="detail-section-title" style={{ marginTop: 16 }}>{t.metricDetails}</h4>
       <div className="table-scroll">
         <table className="detail-table detail-table--metrics">
           <thead>
             <tr>
-              <th>Category</th>
-              <th>Metric</th>
-              <th style={{ textAlign: 'right' }}>Raw</th>
-              <th style={{ textAlign: 'right' }}>Normalized</th>
+              <th>{t.colCategory}</th>
+              <th>{t.colMetric}</th>
+              <th style={{ textAlign: 'right' }}>{t.colRaw}</th>
+              <th style={{ textAlign: 'right' }}>{t.colNormalized}</th>
             </tr>
           </thead>
           <tbody>

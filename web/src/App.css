@@ -51,6 +51,24 @@
   border-color: var(--border-strong);
 }
 
+/* ── Language toggle ──────────────────────────────────────────────────────── */
+
+.lang-toggle {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.lang-toggle:hover {
+  background: var(--bg-card);
+  border-color: var(--border-strong);
+}
+
 /* ── Mask-values toggle ───────────────────────────────────────────────────── */
 
 .mask-values-toggle {

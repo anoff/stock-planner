@@ -1,6 +1,7 @@
 import React from "react";
 import type { PositionMetrics } from "../utils/types";
 import { useTheme } from "../theme";
+import { useLanguage } from "../i18n";
 
 interface Props {
   metrics: PositionMetrics[];
@@ -25,7 +26,7 @@ function pctColor(val: number | null): string {
   return val >= 0 ? "var(--positive)" : "var(--negative)";
 }
 
-function signalColor(signal: string): string {
+const signalColor = (signal: string): string => {
   const map: Record<string, string> = {
     "🟢 Hold":        "#22c55e",
     "🟣 Take Profit": "#a78bfa",
@@ -39,22 +40,23 @@ function signalColor(signal: string): string {
 
 const MASKED = "• • •";
 
-const HEADERS = [
-  { label: "Name",         align: "left"  },
-  { label: "Profit",       align: "right" },
-  { label: "Ticker",       align: "left"  },
-  { label: "CAGR",         align: "right" },
-  { label: "α CAGR",       align: "right" },
-  { label: "1M",           align: "right" },
-  { label: "6M",           align: "right" },
-  { label: "Total Return", align: "right" },
-  { label: "Days Held",    align: "right" },
-  { label: "Score",        align: "right" },
-  { label: "Signal",       align: "left"  },
-] as const;
-
 export default function MetricsTable({ metrics, benchmark }: Props) {
   const { maskValues } = useTheme();
+  const { t } = useLanguage();
+
+  const HEADERS = [
+    { label: t.colName,        align: "left"  },
+    { label: t.colProfit,      align: "right" },
+    { label: t.colTicker,      align: "left"  },
+    { label: t.colCagr,        align: "right" },
+    { label: t.colAlphaCagr,   align: "right" },
+    { label: t.col1m,          align: "right" },
+    { label: t.col6m,          align: "right" },
+    { label: t.colTotalReturn, align: "right" },
+    { label: t.colDaysHeld,    align: "right" },
+    { label: t.colScore,       align: "right" },
+    { label: t.colSignal,      align: "left"  },
+  ] as const;
   const tooEarly = metrics.filter((m) => m.signal === "⏳ Too Early");
   const rest     = metrics.filter((m) => m.signal !== "⏳ Too Early");
   rest.sort((a, b) => b.cagr - a.cagr);
@@ -64,7 +66,7 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
   return (
     <div style={{ margin: "8px 0 32px" }}>
       <div className="section-title">
-        📊 Position Metrics
+        {t.positionMetrics}
         <span className="muted">vs {benchmark}</span>
       </div>
 
@@ -101,7 +103,7 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
                           borderTop: "2px solid var(--border-strong)",
                         }}
                       >
-                        ⏳ Too Early — held &lt;3 months, sorted by total return
+                        {t.tooEarlyLabel}
                       </td>
                     </tr>
                   )}
@@ -137,7 +139,7 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
                       {m.fuzzyScore >= 0 ? "+" : ""}{m.fuzzyScore.toFixed(2)}
                     </td>
                     <td style={{ color: signalColor(m.signal), fontWeight: 600 }}>
-                      {m.signal}
+                      {t.signalLabels[m.signal] ?? m.signal}
                     </td>
                   </tr>
                 </React.Fragment>
