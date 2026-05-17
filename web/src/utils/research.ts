@@ -123,12 +123,17 @@ const BALANCE_SHEET_KEYS = [
  * Uses the trailing (TTM) time-series data combined with the most recent
  * quarterly balance sheet snapshot and current price to derive the same
  * metrics that quoteSummary would provide.
+ *
+ * @param longName  Optional resolved company long name (falls back to ticker).
+ * @param shortName Optional resolved company short name (falls back to ticker).
  */
 export function parseFundamentalsTimeSeries(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   response: Record<string, any>,
   ticker: string,
   currentPrice: number | null,
+  longName?: string,
+  shortName?: string,
 ): StockInfo | null {
   const results = response?.timeseries?.result;
   if (!Array.isArray(results) || results.length === 0) return null;
@@ -228,8 +233,8 @@ export function parseFundamentalsTimeSeries(
     ? ev / ttmOperating : null;
 
   return {
-    longName:  ticker,
-    shortName: ticker,
+    longName:  longName || ticker,
+    shortName: shortName || ticker,
     currency:  '',
     trailingPE,
     priceToBook,
@@ -264,6 +269,43 @@ function computeYoYGrowth(quarters: { ts: number; val: number }[]): number | nul
   return (recent.val - yearAgo.val) / Math.abs(yearAgo.val);
 }
 
+/**
+ * Fetch the company long and short name for a ticker using the Yahoo Finance
+ * search API.  This endpoint does not require crumb/cookie authentication.
+ * Falls back to empty strings on any error so the caller can use the ticker
+ * as a display name instead.
+ */
+export async function fetchStockName(
+  ticker: string,
+): Promise<{ longName: string; shortName: string }> {
+  const fallback = { longName: '', shortName: '' };
+  try {
+    const yfUrl =
+      `https://query1.finance.yahoo.com/v1/finance/search` +
+      `?q=${encodeURIComponent(ticker)}&quotesCount=5&newsCount=0&enableFuzzyQuery=false`;
+    const url = `${CORS_PROXY}${encodeURIComponent(yfUrl)}`;
+    const res = await fetch(url);
+    if (!res.ok) return fallback;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: Record<string, any> = await res.json();
+    const quotes = data?.quotes;
+    if (!Array.isArray(quotes) || quotes.length === 0) return fallback;
+    // Prefer an exact symbol match; fall back to the first result.
+    const match =
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      quotes.find((q: any) =>
+        typeof q.symbol === 'string' &&
+        q.symbol.toUpperCase() === ticker.toUpperCase(),
+      ) ?? quotes[0];
+    return {
+      longName:  typeof match.longname  === 'string' ? match.longname  : '',
+      shortName: typeof match.shortname === 'string' ? match.shortname : '',
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 export async function fetchStockInfo(
   ticker: string,
   currentPrice?: number | null,
@@ -286,15 +328,22 @@ export async function fetchStockInfo(
     `&merge=false&padTimeSeries=true&lang=en-US&region=US`;
   const url = `${CORS_PROXY}${encodeURIComponent(yfUrl)}`;
 
-  // Let network errors and HTTP errors propagate — callers track them as failures.
-  // Only return null when the request succeeded but Yahoo has no data for this ticker.
-  const res = await fetch(url);
+  // Fetch fundamentals and company name in parallel.
+  // fetchStockName handles its own errors and returns fallback empty strings,
+  // so Promise.all will only reject if the fundamentals fetch throws.
+  const [res, stockName] = await Promise.all([
+    fetch(url),
+    fetchStockName(ticker),
+  ]);
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} fetching fundamentals for ${ticker}`);
   }
 
   const data = await res.json();
-  return parseFundamentalsTimeSeries(data, ticker, currentPrice ?? null);
+  return parseFundamentalsTimeSeries(
+    data, ticker, currentPrice ?? null,
+    stockName.longName, stockName.shortName,
+  );
 }
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
