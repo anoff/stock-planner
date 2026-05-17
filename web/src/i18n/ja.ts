@@ -44,6 +44,13 @@ const ja: Translations = {
   showCharts: '📈 チャートを表示',
   footer:
     'データはYahoo Financeより。すべての計算はブラウザで実行されます。',
+  footerDesc:
+    'ティッカーで企業のポートフォリオや株価パフォーマンスをリサーチ。楽天証券の取引履歴を分析。',
+  footerPrivacy:
+    '🔒 ユーザーデータはサーバーに保存されません — すべての処理はブラウザ内で実行されます。',
+  footerGithub: 'GitHub',
+  footerLicense: 'MITライセンス',
+  footerCopyright: (year) => `© ${year} anoff`,
 
   // ── Benchmark row ─────────────────────────────────────────────────────────
   referenceBenchmark: 'リファレンスベンチマーク:',

@@ -44,6 +44,13 @@ const en: Translations = {
   showCharts: '📈 Show Charts',
   footer:
     'Data sourced from Yahoo Finance. All calculations are performed in the browser.',
+  footerDesc:
+    'Research company portfolio and stock performance via ticker. Analyze Rakuten trade history.',
+  footerPrivacy:
+    '🔒 No user data is stored on a server — all processing takes place locally in your browser.',
+  footerGithub: 'GitHub',
+  footerLicense: 'MIT License',
+  footerCopyright: (year) => `© ${year} anoff`,
 
   // ── Benchmark row ─────────────────────────────────────────────────────────
   referenceBenchmark: 'Reference benchmark:',

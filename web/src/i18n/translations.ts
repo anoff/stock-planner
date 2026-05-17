@@ -35,6 +35,11 @@ export interface Translations {
   hideCharts: string;
   showCharts: string;
   footer: string;
+  footerDesc: string;
+  footerPrivacy: string;
+  footerGithub: string;
+  footerLicense: string;
+  footerCopyright: (year: number) => string;
 
   // ── Benchmark row ─────────────────────────────────────────────────────────
   referenceBenchmark: string;
