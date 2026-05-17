@@ -4,6 +4,7 @@ import {
 } from 'recharts';
 import type { ResearchResult } from '../utils/research';
 import { SIGNAL_COLOR } from '../utils/scoring';
+import { useLanguage } from '../i18n';
 
 interface Props {
   results: ResearchResult[];
@@ -53,6 +54,8 @@ function TickerTick(props: {
 }
 
 export default function ScoreChart({ results }: Props) {
+  const { t } = useLanguage();
+
   if (results.length === 0) return null;
 
   // Build ticker → name lookup used by both custom ticks
@@ -85,10 +88,10 @@ export default function ScoreChart({ results }: Props) {
 
   return (
     <div className="score-chart-section">
-      <h2 className="research-section-title">Scores</h2>
+      <h2 className="research-section-title">{t.scoresTitle}</h2>
 
       {/* Category breakdown grouped bar chart */}
-      <h3 className="chart-subtitle">Category Breakdown</h3>
+      <h3 className="chart-subtitle">{t.categoryBreakdown}</h3>
       <ResponsiveContainer width="100%" height={Math.max(220, results.length * 60 + 60)}>
         <BarChart
           layout="vertical"
@@ -121,7 +124,7 @@ export default function ScoreChart({ results }: Props) {
       </ResponsiveContainer>
 
       {/* Final score bar chart */}
-      <h3 className="chart-subtitle" style={{ marginTop: 24 }}>Final Score</h3>
+      <h3 className="chart-subtitle" style={{ marginTop: 24 }}>{t.finalScoreTitle}</h3>
       <ResponsiveContainer width="100%" height={Math.max(160, scoreData.length * 48 + 60)}>
         <BarChart
           layout="vertical"

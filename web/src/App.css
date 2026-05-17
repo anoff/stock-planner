@@ -549,6 +549,123 @@
   background: var(--bg-card);
 }
 
+/* Expand-indicator column */
+
+.research-table-expand-header {
+  width: 24px;
+  padding: 6px 4px !important;
+}
+
+.research-table-expand-cell {
+  width: 24px;
+  text-align: center !important;
+  padding: 6px 4px !important;
+  color: var(--text-muted);
+  font-size: 14px;
+  user-select: none;
+}
+
+.research-row-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 6px 0 0;
+  text-align: right;
+}
+
+/* Metric label with info icon + tooltip */
+
+.metric-label-with-desc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metric-desc-icon {
+  position: relative;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: help;
+  line-height: 1;
+  /* Large enough tap target on mobile */
+  min-width: 20px;
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  outline: none;
+}
+
+/* Tooltip arrow — points upward toward the icon, sits just below it */
+.metric-desc-icon::before {
+  content: '';
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-bottom-color: #1f2937;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 101;
+}
+
+/* Tooltip bubble — opens downward so it never clips behind the table header */
+.metric-desc-icon::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: #f9fafb;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: normal;
+  width: 260px;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+/* Show on hover (desktop) or focus/active (mobile tap) */
+.metric-desc-icon:hover::before,
+.metric-desc-icon:focus::before,
+.metric-desc-icon:active::before {
+  opacity: 1;
+}
+
+.metric-desc-icon:hover::after,
+.metric-desc-icon:focus::after,
+.metric-desc-icon:active::after {
+  opacity: 1;
+}
+
+/* Focus ring for keyboard navigation */
+.metric-desc-icon:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Avoid tooltip overflowing off the left edge of the table on narrow screens */
+@media (max-width: 480px) {
+  .metric-desc-icon::after {
+    left: auto;
+    right: 0;
+    transform: none;
+    width: 220px;
+  }
+  .metric-desc-icon::before {
+    left: auto;
+    right: 6px;
+    transform: none;
+  }
+}
+
 /* Stock detail card */
 
 .stock-detail {

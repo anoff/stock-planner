@@ -168,11 +168,11 @@ export default function ResearchPage() {
                   <thead><tr><th>{t.iconCol}</th><th>{t.labelCol}</th><th>{t.scoreCol}</th></tr></thead>
                   <tbody>
                     {[
-                      ['🔵', 'STRONG',  '> 80'],
-                      ['🟢', 'GOOD',    '60–80'],
-                      ['🟡', 'NEUTRAL', '40–60'],
-                      ['🟠', 'WEAK',    '20–40'],
-                      ['🔴', 'POOR',    '< 20'],
+                      ['🔵', t.scoreStrong,  '> 80'],
+                      ['🟢', t.scoreGood,    '60–80'],
+                      ['🟡', t.scoreNeutral, '40–60'],
+                      ['🟠', t.scoreWeak,    '20–40'],
+                      ['🔴', t.scorePoor,    '< 20'],
                     ].map(([icon, label, range]) => (
                       <tr key={label as string}>
                         <td>{icon as string}</td>

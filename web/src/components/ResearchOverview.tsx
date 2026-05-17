@@ -1,5 +1,5 @@
 import type { ResearchResult } from '../utils/research';
-import { fmtPct, SIGNAL_COLOR, CATEGORY_ABBREVS, categoryIcons } from '../utils/scoring';
+import { fmtPct, SIGNAL_COLOR, CATEGORIES, categoryIcons } from '../utils/scoring';
 import { useLanguage } from '../i18n';
 
 interface Props {
@@ -35,8 +35,10 @@ function SignalCell({ result }: { result: ResearchResult }) {
 }
 
 export default function ResearchOverview({ results, onSelectTicker, selectedTicker }: Props) {
-  const abbrevs = CATEGORY_ABBREVS.join(', ');
   const { t } = useLanguage();
+  const abbrevs = Object.keys(CATEGORIES)
+    .map((cat) => t.categoryAbbrevs[cat] ?? cat.slice(0, 3))
+    .join(', ');
 
   return (
     <div className="research-overview">
@@ -56,6 +58,7 @@ export default function ResearchOverview({ results, onSelectTicker, selectedTick
               <th style={{ textAlign: 'right' }}>{t.col1mShort}</th>
               <th style={{ textAlign: 'right' }}>{t.colScore}</th>
               <th>{t.signalWithAbbrevs(abbrevs)}</th>
+              <th className="research-table-expand-header" aria-label={t.clickToExpand}></th>
             </tr>
           </thead>
           <tbody>
@@ -81,12 +84,16 @@ export default function ResearchOverview({ results, onSelectTicker, selectedTick
                   <PctCell value={r.ret1m} />
                   <ScoreCell score={r.evaluation.finalScore} />
                   <SignalCell result={r} />
+                  <td className="research-table-expand-cell" aria-hidden="true">
+                    {isSelected ? '▾' : '›'}
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+      <p className="research-row-hint">{t.tapToExpand}</p>
     </div>
   );
 }
