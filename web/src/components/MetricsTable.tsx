@@ -34,8 +34,16 @@ const signalColor = (signal: string): string => {
     "🟡 Watch":       "#fbbf24",
     "🔴 Sell":        "#f87171",
     "⏳ Too Early":   "var(--text-muted)",
+    "⬛ Closed":      "var(--text-muted)",
   };
   return map[signal] ?? "var(--text-muted)";
+}
+
+/** Unique row key — handles same-ticker multi-round closed positions via lastBuyDate. */
+function rowKey(m: PositionMetrics): string {
+  return m.signal === "⬛ Closed"
+    ? `closed-${m.yfTicker}-${m.lastBuyDate.getTime()}`
+    : m.yfTicker;
 }
 
 const MASKED = "• • •";
@@ -57,11 +65,15 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
     { label: t.colScore,       align: "right" },
     { label: t.colSignal,      align: "left"  },
   ] as const;
-  const tooEarly = metrics.filter((m) => m.signal === "⏳ Too Early");
-  const rest     = metrics.filter((m) => m.signal !== "⏳ Too Early");
+
+  const closed   = metrics.filter((m) => m.signal === "⬛ Closed");
+  const active   = metrics.filter((m) => m.signal !== "⬛ Closed");
+  const tooEarly = active.filter((m) => m.signal === "⏳ Too Early");
+  const rest     = active.filter((m) => m.signal !== "⏳ Too Early");
   rest.sort((a, b) => b.cagr - a.cagr);
   tooEarly.sort((a, b) => b.totalReturn - a.totalReturn);
-  const sorted = [...rest, ...tooEarly];
+  closed.sort((a, b) => b.cagr - a.cagr);
+  const sorted = [...rest, ...tooEarly, ...closed];
 
   return (
     <div style={{ margin: "8px 0 32px" }}>
@@ -88,8 +100,10 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
             {sorted.map((m, idx) => {
               const profit = m.currentValue - m.totalCost;
               const isTooEarlyStart = idx === rest.length && tooEarly.length > 0;
+              const isClosedStart   = idx === rest.length + tooEarly.length && closed.length > 0;
+              const isClosed        = m.signal === "⬛ Closed";
               return (
-                <React.Fragment key={m.yfTicker}>
+                <React.Fragment key={rowKey(m)}>
                   {isTooEarlyStart && (
                     <tr>
                       <td
@@ -107,14 +121,31 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
                       </td>
                     </tr>
                   )}
-                  <tr>
-                    <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500 }}>
+                  {isClosedStart && (
+                    <tr>
+                      <td
+                        colSpan={HEADERS.length}
+                        style={{
+                          padding: "5px 12px",
+                          backgroundColor: "var(--accent-surface)",
+                          color: "var(--text-muted)",
+                          fontSize: 11,
+                          fontStyle: "italic",
+                          borderTop: "2px solid var(--border-strong)",
+                        }}
+                      >
+                        {t.closedPositionsGroupLabel}
+                      </td>
+                    </tr>
+                  )}
+                  <tr style={isClosed ? { opacity: 0.6 } : undefined}>
+                    <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500, textDecoration: isClosed ? "line-through" : undefined }}>
                       {m.name}
                     </td>
                     <td className="col-right" style={{ color: maskValues ? "var(--text-muted)" : pctColor(profit), fontVariantNumeric: "tabular-nums" }}>
                       {maskValues ? MASKED : fmtJpy(profit)}
                     </td>
-                    <td style={{ color: "var(--accent)", fontWeight: 600, fontSize: 12 }}>
+                    <td style={{ color: "var(--accent)", fontWeight: 600, fontSize: 12, textDecoration: isClosed ? "line-through" : undefined }}>
                       {m.yfTicker}
                     </td>
                     <td className="col-right" style={{ color: pctColor(m.cagr) }}>
@@ -135,8 +166,8 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
                     <td className="col-right" style={{ color: "var(--text-muted)" }}>
                       {m.daysHeld}
                     </td>
-                    <td className="col-right" style={{ color: pctColor(m.fuzzyScore) }}>
-                      {m.fuzzyScore >= 0 ? "+" : ""}{m.fuzzyScore.toFixed(2)}
+                    <td className="col-right" style={{ color: pctColor(isClosed ? null : m.fuzzyScore) }}>
+                      {isClosed ? "—" : `${m.fuzzyScore >= 0 ? "+" : ""}${m.fuzzyScore.toFixed(2)}`}
                     </td>
                     <td style={{ color: signalColor(m.signal), fontWeight: 600 }}>
                       {t.signalLabels[m.signal] ?? m.signal}

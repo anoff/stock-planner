@@ -5,12 +5,12 @@ import ScatterPlot from "./components/ScatterPlot";
 import Summary from "./components/Summary";
 import ResearchPage from "./components/ResearchPage";
 import PositionChart from "./components/PositionChart";
-import ClosedPositions from "./components/ClosedPositions";
 import OutperformanceChart from "./components/OutperformanceChart";
 import { fetchPriceData } from "./utils/prices";
 import {
   aggregatePositions,
   calculateMetrics,
+  closedToMetrics,
   computeClosedPositions,
   getBenchmarkTicker,
 } from "./utils/metrics";
@@ -51,6 +51,7 @@ function App() {
   const [state, setState] = useState<AppState>({ stage: "idle" });
   const [benchmarkTicker, setBenchmarkTicker] = useState(getBenchmarkTicker());
   const [showDetailCharts, setShowDetailCharts] = useState(false);
+  const [showFullHistory, setShowFullHistory] = useState(false);
   const [chartRange, setChartRange] = useState<"5y" | "3y" | "1y" | "6m" | "1m">("5y");
   const [rangeStart, setRangeStart] = useState<Date>(
     () => new Date(Date.now() - CHART_RANGE_MS["5y"])
@@ -288,87 +289,143 @@ function App() {
                   </button>
                 </div>
 
-                <Summary metrics={state.metrics} benchmark={benchmarkName} />
-
-                <OutperformanceChart metrics={state.metrics} benchmark={benchmarkName} />
-
-                <MetricsTable
-                  metrics={state.metrics}
-                  benchmark={benchmarkName}
-                />
-
-                <ScatterPlot metrics={state.metrics} />
-
-                {/* Individual position charts */}
-                {state.metrics.length > 0 && (
-                  <div style={{ margin: "32px 0" }}>
-                    <div className="section-title">
-                      {t.positionHistoryCharts}
-                    </div>
-                    <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "-8px 0 14px" }}>
-                      {t.chartLegendText}
-                    </p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-                      <button
-                        className={`btn${showDetailCharts ? " btn-active" : ""}`}
-                        onClick={() => setShowDetailCharts((v) => !v)}
-                      >
-                        {showDetailCharts ? t.hideCharts : t.showCharts}
-                      </button>
-                      {showDetailCharts && (
-                        <div style={{ display: "flex", gap: 4 }}>
-                          {(["5y", "3y", "1y", "6m", "1m"] as const).map((r) => (
-                            <button
-                              key={r}
-                              className={`btn btn-sm${chartRange === r ? " btn-active" : ""}`}
-                              onClick={() => {
-                                setChartRange(r);
-                                setRangeStart(new Date(Date.now() - CHART_RANGE_MS[r]));
-                              }}
-                            >
-                              {r}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {showDetailCharts && (
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fill, minmax(480px, 1fr))",
-                          gap: 16,
-                        }}
-                      >
-                        {state.metrics.map((m) => {
-                          const buyTrades = state.trades.filter(
-                            (t) => t.side === "buy" && t.yfTicker === m.yfTicker
-                          );
-                          const sellTrades = state.trades.filter(
-                            (t) => t.side === "sell" && t.yfTicker === m.yfTicker
-                          );
-                          return (
-                            <div key={m.yfTicker} className="chart-card">
-                              <PositionChart
-                                name={m.name}
-                                ticker={m.yfTicker}
-                                priceHistory={state.priceData[m.yfTicker] ?? []}
-                                buyDates={buyTrades.map((t) => t.date)}
-                                sellDates={sellTrades.map((t) => t.date)}
-                                startDate={rangeStart}
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                {/* History toggle — only show when there are closed positions */}
+                {state.closed.length > 0 && (
+                  <div style={{ display: "flex", justifyContent: "center", margin: "12px 0 4px" }}>
+                    <button
+                      className={`history-toggle${showFullHistory ? " history-toggle--active" : ""}`}
+                      onClick={() => setShowFullHistory((v) => !v)}
+                      title={showFullHistory ? t.showActiveOnly : t.showFullHistory}
+                    >
+                      {showFullHistory ? t.showActiveOnly : t.showFullHistory}
+                    </button>
                   </div>
                 )}
 
-                <ClosedPositions
-                  positions={state.closed}
-                  priceData={state.priceData}
-                />
+                {(() => {
+                  const displayMetrics: PositionMetrics[] = showFullHistory
+                    ? [
+                        ...state.metrics,
+                        ...closedToMetrics(state.closed, state.priceData, benchmarkTicker),
+                      ]
+                    : state.metrics;
+
+                  return (
+                    <>
+                      <Summary metrics={displayMetrics} benchmark={benchmarkName} />
+
+                      <OutperformanceChart metrics={displayMetrics} benchmark={benchmarkName} />
+
+                      <MetricsTable
+                        metrics={displayMetrics}
+                        benchmark={benchmarkName}
+                      />
+
+                      <ScatterPlot metrics={displayMetrics} />
+
+                      {/* Individual position charts */}
+                      {displayMetrics.length > 0 && (
+                        <div style={{ margin: "32px 0" }}>
+                          <div className="section-title">
+                            {t.positionHistoryCharts}
+                          </div>
+                          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "-8px 0 14px" }}>
+                            {t.chartLegendText}
+                          </p>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                            <button
+                              className={`btn${showDetailCharts ? " btn-active" : ""}`}
+                              onClick={() => setShowDetailCharts((v) => !v)}
+                            >
+                              {showDetailCharts ? t.hideCharts : t.showCharts}
+                            </button>
+                            {showDetailCharts && (
+                              <div style={{ display: "flex", gap: 4 }}>
+                                {(["5y", "3y", "1y", "6m", "1m"] as const).map((r) => (
+                                  <button
+                                    key={r}
+                                    className={`btn btn-sm${chartRange === r ? " btn-active" : ""}`}
+                                    onClick={() => {
+                                      setChartRange(r);
+                                      setRangeStart(new Date(Date.now() - CHART_RANGE_MS[r]));
+                                    }}
+                                  >
+                                    {r}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {showDetailCharts && (
+                            <div
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(auto-fill, minmax(480px, 1fr))",
+                                gap: 16,
+                              }}
+                            >
+                              {/* Active position charts */}
+                              {state.metrics.map((m) => {
+                                const buyTrades = state.trades.filter(
+                                  (t) => t.side === "buy" && t.yfTicker === m.yfTicker
+                                );
+                                const sellTrades = state.trades.filter(
+                                  (t) => t.side === "sell" && t.yfTicker === m.yfTicker
+                                );
+                                return (
+                                  <div key={m.yfTicker} className="chart-card">
+                                    <PositionChart
+                                      name={m.name}
+                                      ticker={m.yfTicker}
+                                      priceHistory={state.priceData[m.yfTicker] ?? []}
+                                      buyDates={buyTrades.map((t) => t.date)}
+                                      sellDates={sellTrades.map((t) => t.date)}
+                                      startDate={rangeStart}
+                                    />
+                                  </div>
+                                );
+                              })}
+                              {/* Closed position separator + charts (full history mode) */}
+                              {showFullHistory && state.closed.length > 0 && (
+                                <div
+                                  style={{
+                                    gridColumn: "1 / -1",
+                                    padding: "5px 12px",
+                                    backgroundColor: "var(--accent-surface)",
+                                    color: "var(--text-muted)",
+                                    fontSize: 11,
+                                    fontStyle: "italic",
+                                    borderTop: "2px solid var(--border-strong)",
+                                    borderRadius: 4,
+                                  }}
+                                >
+                                  {t.closedPositionsGroupLabel}
+                                </div>
+                              )}
+                              {showFullHistory && state.closed.map((p) => (
+                                <div
+                                  key={`closed-${p.yfTicker}-${p.lastSellDate.getTime()}`}
+                                  className="chart-card"
+                                  style={{ opacity: 0.75 }}
+                                >
+                                  <PositionChart
+                                    name={p.name}
+                                    ticker={p.yfTicker}
+                                    priceHistory={state.priceData[p.yfTicker] ?? []}
+                                    buyDates={p.buyDates}
+                                    sellDates={p.sellDates}
+                                    startDate={new Date(p.firstBuyDate.getTime() - 30 * 24 * 60 * 60 * 1000)}
+                                    endDate={new Date(p.lastSellDate.getTime() + 30 * 24 * 60 * 60 * 1000)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </>
             )}
           </>

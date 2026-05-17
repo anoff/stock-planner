@@ -92,6 +92,8 @@ const en: Translations = {
   colSignal: 'Signal',
   tooEarlyLabel:
     '⏳ Too Early — held <3 months, sorted by total return',
+  closedPositionsGroupLabel:
+    '⬛ Closed — fully sold positions, sorted by realized CAGR',
   signalLabels: {
     '⏳ Too Early':   '⏳ Too Early',
     '🟢 Hold':        '🟢 Hold',
@@ -99,6 +101,7 @@ const en: Translations = {
     '🔵 Buy More':    '🔵 Buy More',
     '🟡 Watch':       '🟡 Watch',
     '🔴 Sell':        '🔴 Sell',
+    '⬛ Closed':      '⬛ Closed',
   },
 
   // ── Drop zone ─────────────────────────────────────────────────────────────
@@ -122,6 +125,8 @@ const en: Translations = {
   show: '▼ show',
   colFirstBuy: 'First Buy',
   colLastSell: 'Last Sell',
+  showFullHistory: '📂 Full History',
+  showActiveOnly: '📊 Active Only',
 
   // ── Ticker input ──────────────────────────────────────────────────────────
   labelTickers: 'Tickers',

@@ -366,6 +366,73 @@ export function calculateMetrics(
     .filter((m): m is PositionMetrics => m !== null);
 }
 
+/**
+ * Adapt fully-closed positions into PositionMetrics so they can be mixed with
+ * active positions in the unified table/chart views.
+ *
+ * Realized metrics (totalReturn, daysHeld, cagr) are populated from the
+ * ClosedPosition data.  If price data is available for the benchmark, the
+ * benchmark return over the holding period and the resulting alpha CAGR are
+ * also computed.  All forward-looking metrics (ret1m, ret6m, bmRet1m,
+ * bmRet6m, alpha1m, alpha6m) are set to null.
+ *
+ * Convention: signal is set to "⬛ Closed" so downstream components can
+ * identify and style closed rows distinctly.
+ *
+ * NOTE: lastBuyDate is repurposed as lastSellDate so that each closed row has
+ * a stable and unique key (same ticker can have multiple closed rounds).
+ */
+export function closedToMetrics(
+  closed: ClosedPosition[],
+  priceData: PriceData,
+  benchmarkTicker: string = DEFAULT_BENCHMARK_TICKER
+): PositionMetrics[] {
+  const bmHistory = priceData[benchmarkTicker];
+
+  return closed.map((p) => {
+    const bmRetBuy = periodReturn(bmHistory, p.firstBuyDate, p.lastSellDate);
+
+    let bmCagr: number | null = null;
+    let alphaCagr: number | null = null;
+    if (bmRetBuy != null) {
+      const rawBmCagr = Math.pow(1 + bmRetBuy, 365 / p.daysHeld) - 1;
+      bmCagr = capCagr(rawBmCagr);
+      alphaCagr = p.cagr - bmCagr;
+    }
+
+    return {
+      // Position fields
+      tickerCode: p.tickerCode,
+      name: p.name,
+      yfTicker: p.yfTicker,
+      totalQty: 0,
+      avgCost: 0,
+      totalCost: p.totalBuyCost,
+      currentPrice: 0,
+      currentValue: p.totalSellProceeds,
+      firstBuyDate: p.firstBuyDate,
+      // Repurpose lastBuyDate as lastSellDate for stable row-key generation
+      lastBuyDate: p.lastSellDate,
+      // Realized metrics
+      totalReturn: p.totalReturn,
+      daysHeld: p.daysHeld,
+      cagr: p.cagr,
+      // Forward-looking fields not applicable for closed positions
+      ret1m: null,
+      ret6m: null,
+      bmRetBuy: bmRetBuy ?? null,
+      bmCagr,
+      bmRet1m: null,
+      bmRet6m: null,
+      alphaCagr,
+      alpha1m: null,
+      alpha6m: null,
+      signal: "⬛ Closed",
+      fuzzyScore: 0,
+    } satisfies PositionMetrics;
+  });
+}
+
 /** Get the default benchmark ticker. */
 export function getBenchmarkTicker(): string {
   return DEFAULT_BENCHMARK_TICKER;
