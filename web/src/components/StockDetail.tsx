@@ -1,8 +1,8 @@
 import type { ResearchResult } from '../utils/research';
 import { fmtPrice } from '../utils/research';
 import {
-  fmtPct, fmtRawMetric, CATEGORIES, METRIC_LABELS,
-  SIGNAL_COLOR, SIGNAL_ACTIONS,
+  fmtPct, fmtRawMetric, CATEGORIES,
+  SIGNAL_COLOR,
 } from '../utils/scoring';
 import type { PriceHistory } from '../utils/types';
 import PositionChart from './PositionChart';
@@ -51,8 +51,16 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
   const { evaluation, ticker, name, currency } = result;
   const { finalSignal, finalScore, vetoed, vetoReasons, categories } = evaluation;
   const signalColor = SIGNAL_COLOR[finalSignal] ?? '#333';
-  const signalAction = SIGNAL_ACTIONS[finalSignal] ?? '';
   const { t } = useLanguage();
+
+  const signalActionMap: Record<string, string> = {
+    STRONG_BUY:  t.strongBuyAction,
+    BUY:         t.buyAction,
+    HOLD:        t.holdAction,
+    SELL:        t.sellAction,
+    STRONG_SELL: t.strongSellAction,
+  };
+  const signalAction = signalActionMap[finalSignal] ?? '';
 
   return (
     <div className="stock-detail">
@@ -120,7 +128,7 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
                 <ScoreRow
                   key={catName}
                   score={cat.score}
-                  label={catName}
+                  label={t.categoryNames[catName] ?? catName}
                   icon={cat.icon}
                 />
               ))}
@@ -140,16 +148,16 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
           <h4 className="detail-section-title">{t.pricePerformance}</h4>
           <table className="detail-table">
             <tbody>
-              <PctRow label="5Y CAGR" value={result.cagr5y} />
-              <PctRow label="3Y CAGR" value={result.cagr3y} />
-              <PctRow label="1Y CAGR" value={result.cagr1y} />
-              <PctRow label={`α 5Y vs ${result.benchmark}`} value={result.alpha5y} />
-              <PctRow label={`α 3Y vs ${result.benchmark}`} value={result.alpha3y} />
-              <PctRow label={`α 1Y vs ${result.benchmark}`} value={result.alpha1y} />
-              <PctRow label={`α 6M vs ${result.benchmark}`} value={result.alpha6m} />
-              <PctRow label={`α 1M vs ${result.benchmark}`} value={result.alpha1m} />
-              <PctRow label="Return 6M" value={result.ret6m} />
-              <PctRow label="Return 1M" value={result.ret1m} />
+              <PctRow label={t.colCagr5y} value={result.cagr5y} />
+              <PctRow label={t.colCagr3y} value={result.cagr3y} />
+              <PctRow label={t.colCagr1y} value={result.cagr1y} />
+              <PctRow label={t.labelAlphaVs('5Y', result.benchmark)} value={result.alpha5y} />
+              <PctRow label={t.labelAlphaVs('3Y', result.benchmark)} value={result.alpha3y} />
+              <PctRow label={t.labelAlphaVs('1Y', result.benchmark)} value={result.alpha1y} />
+              <PctRow label={t.labelAlphaVs('6M', result.benchmark)} value={result.alpha6m} />
+              <PctRow label={t.labelAlphaVs('1M', result.benchmark)} value={result.alpha1m} />
+              <PctRow label={t.labelReturn6m} value={result.ret6m} />
+              <PctRow label={t.labelReturn1m} value={result.ret1m} />
               <tr>
                 <td className="detail-label">{t.dataAvailable}</td>
                 <td style={{ textAlign: 'right' }}>{result.dataMonths.toFixed(0)} {t.months}</td>
@@ -181,8 +189,15 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
                   const nsColor = ns === null ? '#6b7280' : ns > 65 ? '#22863a' : ns < 35 ? '#cb2431' : '#b59000';
                   return (
                     <tr key={`${catName}-${m}`}>
-                      <td style={{ color: '#6b7280' }}>{catName}</td>
-                      <td>{METRIC_LABELS[m] ?? m}</td>
+                      <td style={{ color: '#6b7280' }}>{t.categoryNames[catName] ?? catName}</td>
+                      <td title={t.metricDescriptions[m]}>
+                        <span className="metric-label-with-desc">
+                          {t.metricLabels[m] ?? m}
+                          {t.metricDescriptions[m] && (
+                            <span className="metric-desc-icon" aria-label={t.metricDescriptions[m]}>ⓘ</span>
+                          )}
+                        </span>
+                      </td>
                       <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
                         {fmtRawMetric(m, raw)}
                       </td>

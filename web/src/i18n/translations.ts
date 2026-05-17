@@ -119,6 +119,20 @@ export interface Translations {
   col1mShort: string;
   signalWithAbbrevs: (abbrevs: string) => string;
   clickToExpand: string;
+  /** Visible hint below the overview table that rows are tappable/clickable. */
+  tapToExpand: string;
+
+  // ── Research categories ───────────────────────────────────────────────────
+  /** Full display names for each scoring category, keyed by category identifier. */
+  categoryNames: Record<string, string>;
+  /** Short abbreviations for each scoring category (used in column headers). */
+  categoryAbbrevs: Record<string, string>;
+
+  // ── Research metrics ──────────────────────────────────────────────────────
+  /** Display labels for each raw metric, keyed by metric identifier. */
+  metricLabels: Record<string, string>;
+  /** Brief descriptions for each metric used as tooltips, keyed by metric identifier. */
+  metricDescriptions: Record<string, string>;
 
   // ── Stock detail ──────────────────────────────────────────────────────────
   priceUnavailable: string;
@@ -131,6 +145,10 @@ export interface Translations {
   pricePerformance: string;
   dataAvailable: string;
   months: string;
+  /** Label for the alpha vs benchmark rows in the price/performance table. */
+  labelAlphaVs: (window: string, benchmark: string) => string;
+  labelReturn6m: string;
+  labelReturn1m: string;
   metricDetails: string;
   colMetric: string;
   colRaw: string;
@@ -140,6 +158,11 @@ export interface Translations {
   scoreNeutral: string;
   scoreWeak: string;
   scorePoor: string;
+
+  // ── Score chart ───────────────────────────────────────────────────────────
+  scoresTitle: string;
+  categoryBreakdown: string;
+  finalScoreTitle: string;
 
   // ── Research legend ───────────────────────────────────────────────────────
   signalLegend: string;
