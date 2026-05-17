@@ -596,26 +596,26 @@
   outline: none;
 }
 
-/* Tooltip arrow */
+/* Tooltip arrow — points upward toward the icon, sits just below it */
 .metric-desc-icon::before {
   content: '';
   position: absolute;
-  bottom: calc(100% + 2px);
+  top: calc(100% + 2px);
   left: 50%;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-top-color: #1f2937;
+  border-bottom-color: #1f2937;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s;
   z-index: 101;
 }
 
-/* Tooltip bubble */
+/* Tooltip bubble — opens downward so it never clips behind the table header */
 .metric-desc-icon::after {
   content: attr(data-tooltip);
   position: absolute;
-  bottom: calc(100% + 12px);
+  top: calc(100% + 12px);
   left: 50%;
   transform: translateX(-50%);
   background: #1f2937;
