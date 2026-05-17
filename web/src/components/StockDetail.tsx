@@ -190,11 +190,17 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
                   return (
                     <tr key={`${catName}-${m}`}>
                       <td style={{ color: '#6b7280' }}>{t.categoryNames[catName] ?? catName}</td>
-                      <td title={t.metricDescriptions[m]}>
+                      <td>
                         <span className="metric-label-with-desc">
                           {t.metricLabels[m] ?? m}
                           {t.metricDescriptions[m] && (
-                            <span className="metric-desc-icon" aria-label={t.metricDescriptions[m]}>ⓘ</span>
+                            <span
+                              className="metric-desc-icon"
+                              data-tooltip={t.metricDescriptions[m]}
+                              aria-label={t.metricDescriptions[m]}
+                              tabIndex={0}
+                              role="tooltip"
+                            >ⓘ</span>
                           )}
                         </span>
                       </td>
