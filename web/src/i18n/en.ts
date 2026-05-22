@@ -88,6 +88,7 @@ const en: Translations = {
   col6m: '6M',
   colTotalReturn: 'Total Return',
   colDaysHeld: 'Days Held',
+  colPortfolioPct: 'Port. %',
   colScore: 'Score',
   colSignal: 'Signal',
   tooEarlyLabel:

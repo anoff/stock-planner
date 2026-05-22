@@ -10,15 +10,20 @@ interface Props {
 
 function fmtPct(val: number | null): string {
   if (val == null || !isFinite(val)) return "—";
-  return `${val >= 0 ? "+" : ""}${(val * 100).toFixed(1)}%`;
+  const abs = Math.abs(val * 100);
+  const decimals = abs >= 5 ? 0 : 1;
+  return `${val >= 0 ? "+" : ""}${(val * 100).toFixed(decimals)}%`;
 }
 
-function fmtJpy(val: number): string {
-  return new Intl.NumberFormat("ja-JP", {
-    style: "currency",
-    currency: "JPY",
-    maximumFractionDigits: 0,
-  }).format(val);
+function fmtPortfolioPct(val: number | null): string {
+  if (val == null || !isFinite(val)) return "—";
+  const pct = val * 100;
+  return `${pct >= 5 ? pct.toFixed(0) : pct.toFixed(1)}%`;
+}
+
+function fmtMan(val: number): string {
+  const man = val / 10000;
+  return `${man >= 0 ? "+" : ""}${man.toFixed(1)}万`;
 }
 
 function pctColor(val: number | null): string {
@@ -52,15 +57,15 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
   const { maskValues } = useTheme();
   const { t } = useLanguage();
 
+  const totalPortfolioValue = metrics
+    .filter((m) => m.signal !== "⬛ Closed")
+    .reduce((sum, m) => sum + m.currentValue, 0);
+
   const HEADERS = [
-    { label: t.colName,        align: "left"  },
-    { label: t.colProfit,      align: "right" },
     { label: t.colTicker,      align: "left"  },
-    { label: t.colCagr,        align: "right" },
+    { label: t.colProfit,      align: "right" },
+    { label: t.colPortfolioPct, align: "right" },
     { label: t.colAlphaCagr,   align: "right" },
-    { label: t.col1m,          align: "right" },
-    { label: t.col6m,          align: "right" },
-    { label: t.colTotalReturn, align: "right" },
     { label: t.colDaysHeld,    align: "right" },
     { label: t.colScore,       align: "right" },
     { label: t.colSignal,      align: "left"  },
@@ -102,6 +107,9 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
               const isTooEarlyStart = idx === rest.length && tooEarly.length > 0;
               const isClosedStart   = idx === rest.length + tooEarly.length && closed.length > 0;
               const isClosed        = m.signal === "⬛ Closed";
+              const portfolioPct    = isClosed || totalPortfolioValue === 0
+                ? null
+                : m.currentValue / totalPortfolioValue;
               return (
                 <React.Fragment key={rowKey(m)}>
                   {isTooEarlyStart && (
@@ -139,29 +147,17 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
                     </tr>
                   )}
                   <tr style={isClosed ? { opacity: 0.6 } : undefined}>
-                    <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500, textDecoration: isClosed ? "line-through" : undefined }}>
-                      {m.name}
-                    </td>
-                    <td className="col-right" style={{ color: maskValues ? "var(--text-muted)" : pctColor(profit), fontVariantNumeric: "tabular-nums" }}>
-                      {maskValues ? MASKED : fmtJpy(profit)}
-                    </td>
-                    <td style={{ color: "var(--accent)", fontWeight: 600, fontSize: 12, textDecoration: isClosed ? "line-through" : undefined }}>
+                    <td title={m.name} style={{ color: "var(--accent)", fontWeight: 600, fontSize: 12, textDecoration: isClosed ? "line-through" : undefined }}>
                       {m.yfTicker}
                     </td>
-                    <td className="col-right" style={{ color: pctColor(m.cagr) }}>
-                      {fmtPct(m.cagr)}
+                    <td className="col-right" style={{ color: maskValues ? "var(--text-muted)" : pctColor(profit), fontVariantNumeric: "tabular-nums" }}>
+                      {maskValues ? MASKED : fmtMan(profit)}
+                    </td>
+                    <td className="col-right" style={{ color: "var(--text-muted)" }}>
+                      {maskValues ? MASKED : fmtPortfolioPct(portfolioPct)}
                     </td>
                     <td className="col-right" style={{ color: pctColor(m.alphaCagr), fontWeight: 700 }}>
                       {fmtPct(m.alphaCagr)}
-                    </td>
-                    <td className="col-right" style={{ color: pctColor(m.ret1m) }}>
-                      {fmtPct(m.ret1m)}
-                    </td>
-                    <td className="col-right" style={{ color: pctColor(m.ret6m) }}>
-                      {fmtPct(m.ret6m)}
-                    </td>
-                    <td className="col-right" style={{ color: pctColor(m.totalReturn) }}>
-                      {fmtPct(m.totalReturn)}
                     </td>
                     <td className="col-right" style={{ color: "var(--text-muted)" }}>
                       {m.daysHeld}
