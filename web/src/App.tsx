@@ -409,6 +409,14 @@ function App() {
                           <StockDetail
                             result={detailState.result}
                             priceHistory={state.priceData[selectedAnalysisTicker]}
+                            buyDates={[
+                              ...state.trades.filter((tr) => tr.side === "buy" && tr.yfTicker === selectedAnalysisTicker).map((tr) => tr.date),
+                              ...state.closed.filter((p) => p.yfTicker === selectedAnalysisTicker).flatMap((p) => p.buyDates),
+                            ]}
+                            sellDates={[
+                              ...state.trades.filter((tr) => tr.side === "sell" && tr.yfTicker === selectedAnalysisTicker).map((tr) => tr.date),
+                              ...state.closed.filter((p) => p.yfTicker === selectedAnalysisTicker).flatMap((p) => p.sellDates),
+                            ]}
                             onClose={() => setSelectedAnalysisTicker(null)}
                           />
                         );

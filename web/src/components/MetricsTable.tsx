@@ -160,7 +160,8 @@ export default function MetricsTable({ metrics, benchmark, onSelectTicker, selec
                     title={onSelectTicker ? t.clickToExpand : undefined}
                   >
                     <td title={m.name} style={{ color: "var(--accent)", fontWeight: 600, fontSize: 12, textDecoration: isClosed ? "line-through" : undefined }}>
-                      {m.yfTicker}
+                      <div>{m.yfTicker}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 400, marginTop: 1 }}>{m.name}</div>
                     </td>
                     <td className="col-right" style={{ color: maskValues ? "var(--text-muted)" : pctColor(profit), fontVariantNumeric: "tabular-nums" }}>
                       {maskValues ? MASKED : fmtMan(profit)}
