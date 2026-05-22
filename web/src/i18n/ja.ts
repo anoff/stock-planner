@@ -88,6 +88,7 @@ const ja: Translations = {
   col6m: '6ヶ月',
   colTotalReturn: '総リターン',
   colDaysHeld: '保有日数',
+  colPortfolioPct: '比率',
   colScore: 'スコア',
   colSignal: 'シグナル',
   tooEarlyLabel:

@@ -75,6 +75,7 @@ export interface Translations {
   col6m: string;
   colTotalReturn: string;
   colDaysHeld: string;
+  colPortfolioPct: string;
   colScore: string;
   colSignal: string;
   tooEarlyLabel: string;

@@ -548,7 +548,46 @@
   color: var(--text-muted);
 }
 
+/* Positions metrics table (portfolio analysis) */
+
+.metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.metrics-table th {
+  padding: 6px 12px;
+  border-bottom: 2px solid var(--border);
+  background: var(--bg-surface);
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.metrics-table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metrics-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.metrics-table tbody tr:hover td {
+  background: var(--accent-surface);
+}
+
+.col-right {
+  text-align: right;
+}
+
 /* Overview table */
+
 
 .research-section-title {
   font-size: 18px;

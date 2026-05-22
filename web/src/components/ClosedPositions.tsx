@@ -10,27 +10,18 @@ interface Props {
 }
 
 function fmtPct(val: number): string {
-  return `${val >= 0 ? "+" : ""}${(val * 100).toFixed(1)}%`;
+  const abs = Math.abs(val * 100);
+  const decimals = abs >= 5 ? 0 : 1;
+  return `${val >= 0 ? "+" : ""}${(val * 100).toFixed(decimals)}%`;
 }
 
-function fmtJpy(val: number): string {
-  return new Intl.NumberFormat("ja-JP", {
-    style: "currency",
-    currency: "JPY",
-    maximumFractionDigits: 0,
-  }).format(val);
+function fmtMan(val: number): string {
+  const man = val / 10000;
+  return `${man >= 0 ? "+" : ""}${man.toFixed(1)}万`;
 }
 
 function pctColor(val: number): string {
   return val >= 0 ? "var(--positive)" : "var(--negative)";
-}
-
-function fmtDate(d: Date): string {
-  return d.toLocaleDateString("en-GB", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
 }
 
 /** Stable per-row key: ticker + last-sell timestamp handles same-ticker multi-rounds. */
@@ -65,8 +56,7 @@ export default function ClosedPositions({ positions, priceData }: Props) {
               <thead>
                 <tr>
                   {[
-                    t.colName, t.colTicker, t.colFirstBuy, t.colLastSell,
-                    t.colDaysHeld, t.colProfit, t.colTotalReturn, t.colCagr,
+                    t.colTicker, t.colDaysHeld, t.colProfit, t.colTotalReturn, t.colCagr,
                   ].map((h) => (
                     <th key={h}>{h}</th>
                   ))}
@@ -77,19 +67,14 @@ export default function ClosedPositions({ positions, priceData }: Props) {
                   const profit = p.totalSellProceeds - p.totalBuyCost;
                   return (
                     <tr key={rowKey(p)}>
-                      <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500 }}>
-                        {p.name}
-                      </td>
-                      <td style={{ color: "var(--accent)", fontWeight: 600, fontSize: 12 }}>
+                      <td title={p.name} style={{ color: "var(--accent)", fontWeight: 600, fontSize: 12 }}>
                         {p.yfTicker}
                       </td>
-                      <td style={{ color: "var(--text-muted)" }}>{fmtDate(p.firstBuyDate)}</td>
-                      <td style={{ color: "var(--text-muted)" }}>{fmtDate(p.lastSellDate)}</td>
                       <td className="col-right" style={{ color: "var(--text-muted)" }}>
                         {p.daysHeld}
                       </td>
                       <td className="col-right" style={{ color: maskValues ? "var(--text-muted)" : pctColor(profit), fontVariantNumeric: "tabular-nums" }}>
-                        {maskValues ? MASKED : fmtJpy(profit)}
+                        {maskValues ? MASKED : fmtMan(profit)}
                       </td>
                       <td className="col-right" style={{ color: pctColor(p.totalReturn), fontWeight: 600 }}>
                         {fmtPct(p.totalReturn)}
