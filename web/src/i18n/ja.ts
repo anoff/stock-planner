@@ -38,6 +38,8 @@ const ja: Translations = {
 
   // ── Portfolio results ──────────────────────────────────────────────────────
   loadNewFiles: '↩ 新しいファイルを読み込む',
+  loadingDetail: 'リサーチデータを読み込み中…',
+  loadingDetailFailed: 'リサーチデータの読み込みに失敗しました。',
   positionHistoryCharts: '📉 ポジション履歴チャート',
   chartLegendText: '株価時系列（B = 買い、S = 売りのマーカー付き）。',
   hideCharts: 'チャートを隠す',

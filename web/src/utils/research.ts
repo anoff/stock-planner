@@ -379,19 +379,22 @@ export interface ComputeResearchResult {
 }
 
 /**
- * For a list of tickers + benchmark, fetch price data and fundamental info,
- * then run the scoring engine for each ticker.
+ * Build a ResearchResult for a single ticker given already-fetched price data
+ * and fundamental info (info may be null if unavailable).
  *
- * onProgress is called after each fetch to allow the UI to show a progress bar.
- * priceData can be passed in if already fetched (e.g. to avoid re-fetching).
+ * This is the shared computation step used by both computeResearchMetrics (batch)
+ * and fetchAndComputeResearchResult (on-demand, single ticker for Rakuten Analysis).
+ * Returns null if the ticker has no price history in priceData.
  */
-export async function computeResearchMetrics(
-  tickers: string[],
-  benchmark: string,
+export function buildResearchResultForTicker(
+  ticker: string,
   priceData: PriceData,
-  onProgress?: (p: ResearchProgress) => void,
-): Promise<ComputeResearchResult> {
+  benchmark: string,
+  info: StockInfo | null,
+): ResearchResult | null {
   const today = new Date();
+  const hist = priceData[ticker];
+  if (!hist || hist.length === 0) return null;
 
   const cutoffs = {
     '1y': new Date(today.getTime() - 365 * 86400_000),
@@ -413,7 +416,131 @@ export async function computeResearchMetrics(
   const bmCagr3y = cagr(bmRet['3y'], 3);
   const bmCagr5y = cagr(bmRet['5y'], 5);
 
-  // Fetch fundamental info for all tickers
+  const name = info?.longName || info?.shortName || ticker;
+  const currency = info?.currency ?? '';
+
+  const firstDate = hist[0].date;
+  const dataMonths = (today.getTime() - firstDate.getTime()) / (30.44 * 86400_000);
+
+  const ret = {
+    '1y': periodReturn(hist, cutoffs['1y'], today),
+    '3y': periodReturn(hist, cutoffs['3y'], today),
+    '5y': periodReturn(hist, cutoffs['5y'], today),
+    '6m': periodReturn(hist, cutoffs['6m'], today),
+    '1m': periodReturn(hist, cutoffs['1m'], today),
+  };
+
+  const cagr1y = cagr(ret['1y'], 1);
+  const cagr3y = cagr(ret['3y'], 3);
+  const cagr5y = cagr(ret['5y'], 5);
+
+  const alpha1y = cagr1y !== null && bmCagr1y !== null ? cagr1y - bmCagr1y : null;
+  const alpha3y = cagr3y !== null && bmCagr3y !== null ? cagr3y - bmCagr3y : null;
+  const alpha5y = cagr5y !== null && bmCagr5y !== null ? cagr5y - bmCagr5y : null;
+  const alpha6m  = ret['6m'] !== null && bmRet['6m'] !== null ? ret['6m']! - bmRet['6m']! : null;
+  const alpha1m  = ret['1m'] !== null && bmRet['1m'] !== null ? ret['1m']! - bmRet['1m']! : null;
+
+  const currentPrice = priceOn(hist, today);
+  const priceDate    = priceDateOn(hist, today);
+  const refDate6m    = priceDateOn(hist, cutoffs['6m']);
+  const refDate1m    = priceDateOn(hist, cutoffs['1m']);
+
+  const mcap = info?.marketCap ?? null;
+  const fcf  = info?.freeCashflow ?? null;
+  const fcfYield = mcap && fcf !== null && mcap > 0 ? fcf / mcap : null;
+
+  const rawMetrics: Record<string, number | null> = {
+    // Valuation
+    trailingPE:               info?.trailingPE              ?? null,
+    priceToBook:              info?.priceToBook             ?? null,
+    enterpriseToEbitda:       info?.enterpriseToEbitda      ?? null,
+    // Quality
+    returnOnEquity:           info?.returnOnEquity          ?? null,
+    operatingMargins:         info?.operatingMargins        ?? null,
+    grossMargins:             info?.grossMargins            ?? null,
+    dividendYield:            info?.dividendYield           ?? null,
+    payoutRatio:              info?.payoutRatio             ?? null,
+    // Health
+    debtToEquity:             info?.debtToEquity            ?? null,
+    currentRatio:             info?.currentRatio            ?? null,
+    fcfYield,
+    freeCashflow:             fcf,
+    // Growth
+    earningsQuarterlyGrowth:  info?.earningsQuarterlyGrowth ?? null,
+    revenueGrowth:            info?.revenueGrowth           ?? null,
+    recommendationScore:      info?.recommendationMean      ?? null,
+    // Momentum (price-derived)
+    alpha_best: firstValid(alpha5y, alpha3y, alpha1y),
+    alpha_6m:   alpha6m,
+    cagr_best:  firstValid(cagr5y, cagr3y, cagr1y),
+    ret_6m:     ret['6m'],
+    ret_1m:     ret['1m'],
+  };
+
+  const evaluation = evaluateStock(rawMetrics);
+
+  return {
+    ticker,
+    name: name.slice(0, 30),
+    currency,
+    currentPrice,
+    priceDate,
+    refDate6m,
+    refDate1m,
+    dataMonths: Math.round(dataMonths * 10) / 10,
+    ret6m:  ret['6m'],
+    ret1m:  ret['1m'],
+    cagr1y,
+    cagr3y,
+    cagr5y,
+    alpha1y,
+    alpha3y,
+    alpha5y,
+    alpha6m,
+    alpha1m,
+    benchmark,
+    evaluation,
+  };
+}
+
+/**
+ * Fetch fundamental data for a single ticker on-demand and compute its ResearchResult.
+ *
+ * Used by the Rakuten Analysis tab for lazy, per-position detail fetching.
+ * priceData must already contain price history for the ticker and the benchmark
+ * (it is fetched upfront during portfolio analysis).
+ *
+ * Results should be cached by the caller so repeated expansions do not re-fetch.
+ * Throws if the fundamentals fetch fails so the caller can surface an error.
+ */
+export async function fetchAndComputeResearchResult(
+  ticker: string,
+  priceData: PriceData,
+  benchmark: string,
+): Promise<ResearchResult | null> {
+  const hist = priceData[ticker];
+  const currentPrice = hist ? priceOn(hist, new Date()) : null;
+  // May throw on network / HTTP errors — caller is responsible for handling
+  const info = await fetchStockInfo(ticker, currentPrice);
+  return buildResearchResultForTicker(ticker, priceData, benchmark, info);
+}
+
+/**
+ * For a list of tickers + benchmark, fetch price data and fundamental info,
+ * then run the scoring engine for each ticker.
+ *
+ * onProgress is called after each fetch to allow the UI to show a progress bar.
+ * priceData can be passed in if already fetched (e.g. to avoid re-fetching).
+ */
+export async function computeResearchMetrics(
+  tickers: string[],
+  benchmark: string,
+  priceData: PriceData,
+  onProgress?: (p: ResearchProgress) => void,
+): Promise<ComputeResearchResult> {
+  const today = new Date();
+
+  // Fetch fundamental info for all tickers sequentially
   const infoMap: Record<string, StockInfo | null> = {};
   const failedInfo: string[] = [];
   for (let i = 0; i < tickers.length; i++) {
@@ -432,95 +559,9 @@ export async function computeResearchMetrics(
   const results: ResearchResult[] = [];
 
   for (const ticker of tickers) {
-    const hist = priceData[ticker];
-    if (!hist || hist.length === 0) continue;
-
-    const info = infoMap[ticker];
-    const name = info?.longName || info?.shortName || ticker;
-    const currency = info?.currency ?? '';
-
-    const firstDate = hist[0].date;
-    const dataMonths = (today.getTime() - firstDate.getTime()) / (30.44 * 86400_000);
-
-    const ret = {
-      '1y': periodReturn(hist, cutoffs['1y'], today),
-      '3y': periodReturn(hist, cutoffs['3y'], today),
-      '5y': periodReturn(hist, cutoffs['5y'], today),
-      '6m': periodReturn(hist, cutoffs['6m'], today),
-      '1m': periodReturn(hist, cutoffs['1m'], today),
-    };
-
-    const cagr1y = cagr(ret['1y'], 1);
-    const cagr3y = cagr(ret['3y'], 3);
-    const cagr5y = cagr(ret['5y'], 5);
-
-    const alpha1y = cagr1y !== null && bmCagr1y !== null ? cagr1y - bmCagr1y : null;
-    const alpha3y = cagr3y !== null && bmCagr3y !== null ? cagr3y - bmCagr3y : null;
-    const alpha5y = cagr5y !== null && bmCagr5y !== null ? cagr5y - bmCagr5y : null;
-    const alpha6m  = ret['6m'] !== null && bmRet['6m'] !== null ? ret['6m']! - bmRet['6m']! : null;
-    const alpha1m  = ret['1m'] !== null && bmRet['1m'] !== null ? ret['1m']! - bmRet['1m']! : null;
-
-    const currentPrice = priceOn(hist, today);
-    const priceDate    = priceDateOn(hist, today);
-    const refDate6m    = priceDateOn(hist, cutoffs['6m']);
-    const refDate1m    = priceDateOn(hist, cutoffs['1m']);
-
-    const mcap = info?.marketCap ?? null;
-    const fcf  = info?.freeCashflow ?? null;
-    const fcfYield = mcap && fcf !== null && mcap > 0 ? fcf / mcap : null;
-
-    const rawMetrics: Record<string, number | null> = {
-      // Valuation
-      trailingPE:               info?.trailingPE              ?? null,
-      priceToBook:              info?.priceToBook             ?? null,
-      enterpriseToEbitda:       info?.enterpriseToEbitda      ?? null,
-      // Quality
-      returnOnEquity:           info?.returnOnEquity          ?? null,
-      operatingMargins:         info?.operatingMargins        ?? null,
-      grossMargins:             info?.grossMargins            ?? null,
-      dividendYield:            info?.dividendYield           ?? null,
-      payoutRatio:              info?.payoutRatio             ?? null,
-      // Health
-      debtToEquity:             info?.debtToEquity            ?? null,
-      currentRatio:             info?.currentRatio            ?? null,
-      fcfYield,
-      freeCashflow:             fcf,
-      // Growth
-      earningsQuarterlyGrowth:  info?.earningsQuarterlyGrowth ?? null,
-      revenueGrowth:            info?.revenueGrowth           ?? null,
-      recommendationScore:      info?.recommendationMean      ?? null,
-      // Momentum (price-derived)
-      alpha_best: firstValid(alpha5y, alpha3y, alpha1y),
-      alpha_6m:   alpha6m,
-      cagr_best:  firstValid(cagr5y, cagr3y, cagr1y),
-      ret_6m:     ret['6m'],
-      ret_1m:     ret['1m'],
-    };
-
-    const evaluation = evaluateStock(rawMetrics);
-
-    results.push({
-      ticker,
-      name: name.slice(0, 30),
-      currency,
-      currentPrice,
-      priceDate,
-      refDate6m,
-      refDate1m,
-      dataMonths: Math.round(dataMonths * 10) / 10,
-      ret6m:  ret['6m'],
-      ret1m:  ret['1m'],
-      cagr1y,
-      cagr3y,
-      cagr5y,
-      alpha1y,
-      alpha3y,
-      alpha5y,
-      alpha6m,
-      alpha1m,
-      benchmark,
-      evaluation,
-    });
+    // Reuse shared single-ticker builder (avoids duplicating computation logic)
+    const result = buildResearchResultForTicker(ticker, priceData, benchmark, infoMap[ticker] ?? null);
+    if (result) results.push(result);
   }
 
   // Sort by final score descending

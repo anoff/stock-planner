@@ -37,6 +37,8 @@ const en: Translations = {
 
   // ── Portfolio results ──────────────────────────────────────────────────────
   loadNewFiles: '↩ Load new files',
+  loadingDetail: 'Loading research data…',
+  loadingDetailFailed: 'Failed to load research data.',
   positionHistoryCharts: '📉 Position History Charts',
   chartLegendText:
     'Price timeseries with B = buy, S = sell markers.',

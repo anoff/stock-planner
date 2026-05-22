@@ -30,6 +30,8 @@ export interface Translations {
 
   // ── Portfolio results ──────────────────────────────────────────────────────
   loadNewFiles: string;
+  loadingDetail: string;
+  loadingDetailFailed: string;
   positionHistoryCharts: string;
   chartLegendText: string;
   hideCharts: string;
