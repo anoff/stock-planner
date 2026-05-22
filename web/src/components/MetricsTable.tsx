@@ -6,6 +6,10 @@ import { useLanguage } from "../i18n";
 interface Props {
   metrics: PositionMetrics[];
   benchmark: string;
+  /** When provided, rows become clickable to show/hide per-position research detail. */
+  onSelectTicker?: (ticker: string | null) => void;
+  /** The currently expanded ticker (yfTicker value). */
+  selectedTicker?: string | null;
 }
 
 function fmtPct(val: number | null): string {
@@ -53,7 +57,7 @@ function rowKey(m: PositionMetrics): string {
 
 const MASKED = "• • •";
 
-export default function MetricsTable({ metrics, benchmark }: Props) {
+export default function MetricsTable({ metrics, benchmark, onSelectTicker, selectedTicker }: Props) {
   const { maskValues } = useTheme();
   const { t } = useLanguage();
 
@@ -70,7 +74,6 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
     { label: t.colScore,       align: "right" },
     { label: t.colSignal,      align: "left"  },
   ] as const;
-
   const closed   = metrics.filter((m) => m.signal === "⬛ Closed");
   const active   = metrics.filter((m) => m.signal !== "⬛ Closed");
   const tooEarly = active.filter((m) => m.signal === "⏳ Too Early");
@@ -99,6 +102,9 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
                   {h.label}
                 </th>
               ))}
+              {onSelectTicker && (
+                <th className="research-table-expand-header" aria-label={t.clickToExpand}></th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -110,12 +116,13 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
               const portfolioPct    = isClosed || totalPortfolioValue === 0
                 ? null
                 : m.currentValue / totalPortfolioValue;
+              const isSelected      = onSelectTicker ? m.yfTicker === selectedTicker : false;
               return (
                 <React.Fragment key={rowKey(m)}>
                   {isTooEarlyStart && (
                     <tr>
                       <td
-                        colSpan={HEADERS.length}
+                        colSpan={HEADERS.length + (onSelectTicker ? 1 : 0)}
                         style={{
                           padding: "5px 12px",
                           backgroundColor: "var(--accent-surface)",
@@ -132,7 +139,7 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
                   {isClosedStart && (
                     <tr>
                       <td
-                        colSpan={HEADERS.length}
+                        colSpan={HEADERS.length + (onSelectTicker ? 1 : 0)}
                         style={{
                           padding: "5px 12px",
                           backgroundColor: "var(--accent-surface)",
@@ -146,9 +153,15 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
                       </td>
                     </tr>
                   )}
-                  <tr style={isClosed ? { opacity: 0.6 } : undefined}>
+                  <tr
+                    style={isClosed ? { opacity: 0.6 } : undefined}
+                    className={onSelectTicker ? `research-table-row${isSelected ? " research-table-row--selected" : ""}` : undefined}
+                    onClick={onSelectTicker ? () => onSelectTicker(isSelected ? null : m.yfTicker) : undefined}
+                    title={onSelectTicker ? t.clickToExpand : undefined}
+                  >
                     <td title={m.name} style={{ color: "var(--accent)", fontWeight: 600, fontSize: 12, textDecoration: isClosed ? "line-through" : undefined }}>
-                      {m.yfTicker}
+                      <div>{m.yfTicker}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 400, marginTop: 1 }}>{m.name}</div>
                     </td>
                     <td className="col-right" style={{ color: maskValues ? "var(--text-muted)" : pctColor(profit), fontVariantNumeric: "tabular-nums" }}>
                       {maskValues ? MASKED : fmtMan(profit)}
@@ -168,6 +181,11 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
                     <td style={{ color: signalColor(m.signal), fontWeight: 600 }}>
                       {t.signalLabels[m.signal] ?? m.signal}
                     </td>
+                    {onSelectTicker && (
+                      <td className="research-table-expand-cell" aria-hidden="true">
+                        {isSelected ? "▾" : "›"}
+                      </td>
+                    )}
                   </tr>
                 </React.Fragment>
               );
@@ -175,6 +193,9 @@ export default function MetricsTable({ metrics, benchmark }: Props) {
           </tbody>
         </table>
       </div>
+      {onSelectTicker && (
+        <p className="research-row-hint">{t.tapToExpand}</p>
+      )}
     </div>
   );
 }

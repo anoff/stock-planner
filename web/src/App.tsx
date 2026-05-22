@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import DropZone from "./components/DropZone";
 import MetricsTable from "./components/MetricsTable";
 import ScatterPlot from "./components/ScatterPlot";
@@ -6,6 +6,7 @@ import Summary from "./components/Summary";
 import ResearchPage from "./components/ResearchPage";
 import PositionChart from "./components/PositionChart";
 import OutperformanceChart from "./components/OutperformanceChart";
+import StockDetail from "./components/StockDetail";
 import { fetchPriceData } from "./utils/prices";
 import {
   aggregatePositions,
@@ -14,6 +15,8 @@ import {
   computeClosedPositions,
   getBenchmarkTicker,
 } from "./utils/metrics";
+import { fetchAndComputeResearchResult } from "./utils/research";
+import type { ResearchResult } from "./utils/research";
 import type { ClosedPosition, PositionMetrics, PriceData, Trade } from "./utils/types";
 import { BENCHMARK_OPTIONS } from "./utils/types";
 import { ThemeContext, CHART_COLORS } from "./theme";
@@ -57,6 +60,16 @@ function App() {
     () => new Date(Date.now() - CHART_RANGE_MS["5y"])
   );
 
+  // ── Per-position research detail state (Rakuten Analysis tab) ─────────────
+  // selectedAnalysisTicker: which row is currently expanded
+  // analysisDetailStates: session cache mapping yfTicker → loading/done/error
+  const [selectedAnalysisTicker, setSelectedAnalysisTicker] = useState<string | null>(null);
+  const [analysisDetailStates, setAnalysisDetailStates] = useState<
+    Record<string, { status: "loading" } | { status: "done"; result: ResearchResult } | { status: "error"; message: string }>
+  >({});
+  // Ref to prevent double-fetching the same ticker on rapid clicks
+  const inflightDetailFetches = useRef(new Set<string>());
+
   // ── Theme ────────────────────────────────────────────────────────
   const systemDark =
     typeof window !== "undefined" &&
@@ -87,6 +100,11 @@ function App() {
   // ── Shared pipeline: positions → prices → metrics ────────────
   const processTrades = useCallback(
     async (allTrades: Trade[]) => {
+      // Reset per-position research detail when a new analysis starts
+      setSelectedAnalysisTicker(null);
+      setAnalysisDetailStates({});
+      inflightDetailFetches.current.clear();
+
       const buyTrades = allTrades.filter((trade) => trade.side === "buy");
       if (buyTrades.length === 0) {
         setState({ stage: "error", message: t.noBuyTrades });
@@ -141,6 +159,47 @@ function App() {
       await processTrades(trades);
     },
     [processTrades]
+  );
+
+  /**
+   * Called when the user clicks a row in MetricsTable to expand/collapse the
+   * per-position research detail panel. Fetches fundamentals on demand (first
+   * click) and caches the result for the rest of the session.
+   */
+  const handleSelectAnalysisTicker = useCallback(
+    async (ticker: string | null) => {
+      setSelectedAnalysisTicker((prev) => (prev === ticker ? null : ticker));
+      if (!ticker || state.stage !== "done") return;
+
+      // Skip if we already have data or a fetch is in flight
+      if (analysisDetailStates[ticker] || inflightDetailFetches.current.has(ticker)) return;
+
+      inflightDetailFetches.current.add(ticker);
+      setAnalysisDetailStates((prev) => ({ ...prev, [ticker]: { status: "loading" } }));
+
+      const priceData = state.priceData;
+      const bm = benchmarkTicker;
+      try {
+        const result = await fetchAndComputeResearchResult(ticker, priceData, bm);
+        setAnalysisDetailStates((prev) => ({
+          ...prev,
+          [ticker]: result
+            ? { status: "done", result }
+            : { status: "error", message: t.loadingDetailFailed },
+        }));
+      } catch (err) {
+        setAnalysisDetailStates((prev) => ({
+          ...prev,
+          [ticker]: {
+            status: "error",
+            message: err instanceof Error ? err.message : String(err),
+          },
+        }));
+      } finally {
+        inflightDetailFetches.current.delete(ticker);
+      }
+    },
+    [analysisDetailStates, benchmarkTicker, state, t]
   );
 
   const benchmarkName =
@@ -283,7 +342,12 @@ function App() {
                 <div style={{ textAlign: "center", margin: "20px 0 4px" }}>
                   <button
                     className="btn"
-                    onClick={() => setState({ stage: "idle" })}
+                    onClick={() => {
+                      setState({ stage: "idle" });
+                      setSelectedAnalysisTicker(null);
+                      setAnalysisDetailStates({});
+                      inflightDetailFetches.current.clear();
+                    }}
                   >
                     {t.loadNewFiles}
                   </button>
@@ -319,7 +383,44 @@ function App() {
                       <MetricsTable
                         metrics={displayMetrics}
                         benchmark={benchmarkName}
+                        onSelectTicker={handleSelectAnalysisTicker}
+                        selectedTicker={selectedAnalysisTicker}
                       />
+
+                      {/* Per-position research detail panel — on-demand, cached per session */}
+                      {selectedAnalysisTicker && (() => {
+                        const detailState = analysisDetailStates[selectedAnalysisTicker];
+                        if (!detailState || detailState.status === "loading") {
+                          return (
+                            <div className="status" style={{ margin: "8px 0 24px" }}>
+                              {t.loadingDetail}
+                            </div>
+                          );
+                        }
+                        if (detailState.status === "error") {
+                          return (
+                            <div className="warning" style={{ margin: "8px 0 24px" }}>
+                              <p>{t.loadingDetailFailed}</p>
+                              <p style={{ fontSize: 12, color: "var(--text-muted)" }}>{detailState.message}</p>
+                            </div>
+                          );
+                        }
+                        return (
+                          <StockDetail
+                            result={detailState.result}
+                            priceHistory={state.priceData[selectedAnalysisTicker]}
+                            buyDates={[
+                              ...state.trades.filter((tr) => tr.side === "buy" && tr.yfTicker === selectedAnalysisTicker).map((tr) => tr.date),
+                              ...state.closed.filter((p) => p.yfTicker === selectedAnalysisTicker).flatMap((p) => p.buyDates),
+                            ]}
+                            sellDates={[
+                              ...state.trades.filter((tr) => tr.side === "sell" && tr.yfTicker === selectedAnalysisTicker).map((tr) => tr.date),
+                              ...state.closed.filter((p) => p.yfTicker === selectedAnalysisTicker).flatMap((p) => p.sellDates),
+                            ]}
+                            onClose={() => setSelectedAnalysisTicker(null)}
+                          />
+                        );
+                      })()}
 
                       <ScatterPlot metrics={displayMetrics} />
 

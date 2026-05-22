@@ -11,6 +11,8 @@ import { useLanguage } from '../i18n';
 interface Props {
   result: ResearchResult;
   priceHistory?: PriceHistory;
+  buyDates?: Date[];
+  sellDates?: Date[];
   onClose?: () => void;
 }
 
@@ -62,7 +64,7 @@ function ScoreRow({
   );
 }
 
-export default function StockDetail({ result, priceHistory, onClose }: Props) {
+export default function StockDetail({ result, priceHistory, buyDates = [], sellDates = [], onClose }: Props) {
   const { evaluation, ticker, name, currency } = result;
   const { finalSignal, finalScore, vetoed, vetoReasons, categories } = evaluation;
   const signalColor = SIGNAL_COLOR[finalSignal] ?? '#333';
@@ -114,7 +116,8 @@ export default function StockDetail({ result, priceHistory, onClose }: Props) {
             name={name}
             ticker={ticker}
             priceHistory={priceHistory}
-            buyDates={[]}
+            buyDates={buyDates}
+            sellDates={sellDates}
           />
         </div>
       )}
