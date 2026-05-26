@@ -116,6 +116,9 @@ function App() {
           buyTrades.map((trade) => trade.yfTicker).filter((ticker) => ticker !== "")
         ),
         benchmarkTicker,
+        // Always fetch USD/JPY so metrics.ts can convert US stock current
+        // values from USD to JPY at the latest available rate.
+        "USDJPY=X",
       ];
 
       setState({ stage: "fetching", progress: 0, total: tickers.length });

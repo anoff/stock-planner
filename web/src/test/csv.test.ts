@@ -45,6 +45,36 @@ describe("parseTrades", () => {
     expect(trades[0].isFund).toBe(true);
   });
 
+  it("parses US stock trades from CSV text — amounts in JPY using trade-time FX rate", () => {
+    // Header matches the Rakuten tradehistory(US)_*.csv format exactly.
+    const csv = [
+      "約定日,受渡日,ティッカー,銘柄名,口座,取引区分,売買区分,信用区分,弁済期限,決済通貨,数量［株］,単価［USドル］,約定代金［USドル］,為替レート,手数料［USドル］,税金［USドル］,受渡金額［USドル］,受渡金額［円］",
+      '"2025/06/15","2025/06/17","AAPL","Apple Inc","特定","現物","買付","-","-","USD","10","180.00","1,800.00","150.00","0.00","0.00","1,800.00","270,000"',
+      '"2025/09/01","2025/09/03","AAPL","Apple Inc","特定","現物","売付","-","-","USD","5","200.00","1,000.00","152.00","0.00","0.00","1,000.00","152,000"',
+    ].join("\n");
+
+    const trades = parseTrades(csv);
+
+    expect(trades).toHaveLength(2);
+
+    const buy = trades.find((t) => t.side === "buy")!;
+    expect(buy.tickerCode).toBe("AAPL");
+    expect(buy.yfTicker).toBe("AAPL");
+    expect(buy.name).toBe("Apple Inc");
+    expect(buy.qty).toBe(10);
+    // price should be USD unit price × fxRate → 180 × 150 = 27,000 JPY
+    expect(buy.price).toBeCloseTo(27000);
+    // amount should be the raw 受渡金額[円] — NOT divided by fxRate
+    expect(buy.amount).toBe(270000);
+
+    const sell = trades.find((t) => t.side === "sell")!;
+    expect(sell.qty).toBe(5);
+    // 200 USD × 152 rate = 30,400 JPY per share
+    expect(sell.price).toBeCloseTo(30400);
+    // 受渡金額[円] = 152,000 JPY — taken directly
+    expect(sell.amount).toBe(152000);
+  });
+
   it("throws on unsupported CSV format", () => {
     const csv = "Name,Value\nFoo,123\n";
     expect(() => parseTrades(csv)).toThrow("Unsupported CSV format");
