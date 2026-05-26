@@ -123,14 +123,26 @@ export function aggregatePositions(
     // totalCost is in JPY, so qty × proxy-price (USD) would be nonsensical.
     // Instead, scale the cost basis by the proxy ticker's return since the
     // first buy date: currentValue = totalCost × (priceNow / priceAtBuy).
+    //
+    // For US stocks (yfTicker has no ".T" suffix and is not a fund) the
+    // current price from Yahoo Finance is in USD.  Multiply by the latest
+    // USDJPY=X rate so the result is in JPY, consistent with the JPY cost
+    // basis stored in t.amount.
     let currentValue: number;
     const isFund = buys[0].isFund === true;
+    const isUsStock = !isFund && !yfTicker.endsWith(".T");
     if (isFund) {
       const priceAtBuy = priceOn(history, firstBuyDate);
       currentValue =
         priceAtBuy != null && priceAtBuy > 0
           ? totalCost * (currentPrice / priceAtBuy)
           : totalCost; // fallback: 0 % return if history doesn't reach buy date
+    } else if (isUsStock) {
+      const usdJpyRate = priceOn(priceData["USDJPY=X"], now);
+      // Fallback: if the USDJPY=X fetch failed, use the raw USD value so the
+      // position still appears (return % will still be wrong in that case, but
+      // at least the row is visible rather than silently missing).
+      currentValue = remainingQty * currentPrice * (usdJpyRate ?? 1);
     } else {
       currentValue = remainingQty * currentPrice;
     }

@@ -62,11 +62,11 @@ function getColByKeywords(
  *  - US stocks:         tradehistory(US)_*.csv    — has ティッカー column
  *
  * For US stocks the Yahoo Finance ticker is used as-is (no exchange suffix).
- * Price and cost-basis amounts are stored in USD so they remain consistent
- * with Yahoo Finance price history, which is also denominated in USD.
- * The USD amount is derived by dividing the JPY settlement amount by the
- * exchange rate recorded in the CSV, which includes fees — mirroring how
- * JP stocks use 受渡金額[円] (fees included) as the cost basis.
+ * Price and cost-basis amounts are stored in JPY (unit price multiplied by
+ * the trade-time 為替レート; settlement taken directly from 受渡金額[円]) so
+ * they are consistent with JP stocks and investment trusts.  Current market
+ * value is computed in metrics.ts by multiplying qty × USD price × live
+ * USDJPY=X rate fetched from Yahoo Finance.
  *
  * Returns all trades (both buy and sell) with the `side` field set accordingly.
  */
@@ -139,19 +139,23 @@ export function parseTrades(csvText: string): Trade[] {
       const qtyHeader = findHeader(headers, "数量") ?? "数量";
       qty = parseJpNum(row[qtyHeader] ?? "0");
 
-      // Unit price in USD — column name contains both 単価 and US
-      price = parseJpNum(getColByKeywords(row, headers, "単価", "US") || "0");
-
-      // Settlement amount: convert the JPY total (including fees) to USD using
-      // the exchange rate column so cost basis is in the same currency as the
-      // Yahoo Finance prices returned for US tickers.
-      const jpyAmount = parseJpNum(
-        getColByKeywords(row, headers, "受渡金額", "円") || "0"
-      );
+      // Exchange rate (為替レート) recorded at the time of the trade.
       const fxRate = parseJpNum(
         getColByKeywords(row, headers, "為替") || "1"
       );
-      amount = fxRate > 0 ? jpyAmount / fxRate : jpyAmount;
+
+      // Unit price: convert from USD to JPY using the trade-time exchange rate
+      // so all price and amount fields are denominated in JPY, consistent with
+      // JP stocks and investment trusts.  Current value is then computed as
+      // qty × currentPrice_USD × currentUsdJpy (in metrics.ts).
+      price = parseJpNum(getColByKeywords(row, headers, "単価", "US") || "0") * (fxRate > 0 ? fxRate : 1);
+
+      // Settlement amount in JPY — taken directly from 受渡金額[円] (which
+      // already includes fees and taxes) so the cost basis is in JPY and can
+      // be compared correctly with the JPY-converted current value.
+      amount = parseJpNum(
+        getColByKeywords(row, headers, "受渡金額", "円") || "0"
+      );
     } else {
       qty = parseJpNum(row["数量［口］"] ?? "0");
       price = parseJpNum(row["単価"] ?? "0");
