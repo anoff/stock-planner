@@ -5,6 +5,7 @@ import { useLanguage } from "../i18n";
 interface Props {
   metrics: PositionMetrics[];
   benchmark: string;
+  baseCurrency: "EUR" | "JPY";
 }
 
 function fmtPct(val: number | null): string {
@@ -24,7 +25,7 @@ function pctColor(val: number | null): string {
 
 const MASKED = "• • •";
 
-export default function Summary({ metrics, benchmark }: Props) {
+export default function Summary({ metrics, benchmark, baseCurrency }: Props) {
   const { maskValues } = useTheme();
   const { t } = useLanguage();
   const totalValue = metrics.reduce((s, m) => s + m.currentValue, 0);
@@ -63,10 +64,10 @@ export default function Summary({ metrics, benchmark }: Props) {
     {} as Record<string, number>
   );
 
-  const profitStr = new Intl.NumberFormat("ja-JP", {
+  const profitStr = new Intl.NumberFormat(baseCurrency === "EUR" ? "de-DE" : "ja-JP", {
     style: "currency",
-    currency: "JPY",
-    maximumFractionDigits: 0,
+    currency: baseCurrency,
+    maximumFractionDigits: baseCurrency === "EUR" ? 2 : 0,
   }).format(totalProfit);
 
   const cards = [

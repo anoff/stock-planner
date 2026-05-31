@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { parseTrades, resolveFundTicker, decodeFile, deduplicateTrades } from "../utils/csv";
+import {
+  parseTrades,
+  parseRakutenTrades,
+  resolveFundTicker,
+  decodeFile,
+  deduplicateTrades,
+  parseDABTrades,
+  resolveDABTicker,
+  isDABFormat,
+  isRakutenFormat,
+} from "../utils/csv";
 import type { Trade } from "../utils/types";
 
 describe("parseTrades", () => {
@@ -195,5 +205,304 @@ describe("deduplicateTrades", () => {
     expect(result).toHaveLength(2);
     expect(result[0]).toBe(first);
     expect(result[1]).toBe(other);
+  });
+});
+
+// ── DAB bank parser ────────────────────────────────────────────────────────────
+
+/** Minimal two-row DAB bank header + data rows helper. */
+function dabCsv(...dataRows: string[]): string {
+  const sectionHeader =
+    "Depot;Abrechnungskonto;Auftrag;Auftrag;Auftrag;Auftrag;Auftrag;Auftrag;Auftrag;Auftrag;Auftrag;Auftrag;Auftrag;Auftrag;Auftrag;Ausführung;Ausführung;Ausführung;Ausführung;Ausführung;";
+  const columnHeader =
+    "Depot;Abrechnungskonto;Orderart;Aufgabedatum;Ordernummer;Stück/Nominal;Bezeichnung;ISIN;WKN;Handelsplatz;Ausführungsart;Gültig bis;Limit;Stop;Währung;Status;Kurs;Währung;Betrag;Datum / Zeit;";
+  return [sectionHeader, columnHeader, ...dataRows].join("\n");
+}
+
+describe("resolveDABTicker", () => {
+  it("maps known ISINs to Yahoo Finance tickers", () => {
+    expect(resolveDABTicker("DE0007030009")).toBe("RHM.DE");
+    expect(resolveDABTicker("US5949181045")).toBe("MSFT");
+    expect(resolveDABTicker("JP3900000005")).toBe("7011.T");
+    expect(resolveDABTicker("IE00BYPLS672")).toBe("ISPY.L");
+  });
+
+  it("returns null for unknown ISINs", () => {
+    expect(resolveDABTicker("XX0000000000")).toBeNull();
+    expect(resolveDABTicker("")).toBeNull();
+  });
+
+  it("trims surrounding whitespace before lookup", () => {
+    expect(resolveDABTicker("  DE0007664039  ")).toBe("VOW3.DE");
+  });
+});
+
+describe("parseDABTrades", () => {
+  it("parses a Kauf (buy) row correctly", () => {
+    const row =
+      "005437959009;5437959009;Kauf;14.08.2024, 00:00:00;392187540;200 Stück;INTEL CORP.       DL-,001;US4581401001;855681;Tradegate;Limit;14.08.2024, 00:00:00;18,60;;EUR;Abgerechnet;18,60;EUR;3.729,00;14.08.2024, 14:33:43;";
+    const trades = parseDABTrades(dabCsv(row));
+
+    expect(trades).toHaveLength(1);
+    const t = trades[0];
+    expect(t.side).toBe("buy");
+    expect(t.yfTicker).toBe("INTC");
+    expect(t.tickerCode).toBe("US4581401001");
+    expect(t.name).toBe("INTEL CORP.       DL-,001");
+    expect(t.qty).toBe(200);
+    expect(t.amount).toBeCloseTo(3729);
+    expect(t.price).toBeCloseTo(18.645); // 3729 / 200
+    expect(t.currency).toBe("EUR");
+    expect(t.date).toBeInstanceOf(Date);
+    expect(t.date.getFullYear()).toBe(2024);
+    expect(t.date.getMonth()).toBe(7); // August = 7 (0-indexed)
+    expect(t.date.getDate()).toBe(14);
+  });
+
+  it("parses a Verkauf (sell) row and stores amount as positive", () => {
+    const row =
+      "005437959009;5437959009;Verkauf;29.05.2026, 00:00:00;403289002;15 Stück;VOLKSWAGEN AG VZO O.N.;DE0007664039;766403;Tradegate;Bestens;30.06.2026, 00:00:00;;;EUR;Abgerechnet;92,84;EUR;-1.383,60;29.05.2026, 14:05:44;";
+    const trades = parseDABTrades(dabCsv(row));
+
+    expect(trades).toHaveLength(1);
+    const t = trades[0];
+    expect(t.side).toBe("sell");
+    expect(t.yfTicker).toBe("VOW3.DE");
+    expect(t.qty).toBe(15);
+    // Betrag is -1383.60 in CSV; stored as positive abs value
+    expect(t.amount).toBeCloseTo(1383.6);
+    expect(t.price).toBeCloseTo(1383.6 / 15);
+    expect(t.currency).toBe("EUR");
+  });
+
+  it("skips Ausschüttung (dividend) rows", () => {
+    const row =
+      "005437959009;5437959009;Ausschüttung;13.05.2026, 00:00:00;;22 Stück;RHEINMETALL AG;DE0007030009;703000;;;;;;EUR;Abgerechnet;11,50;EUR;-186,28;;";
+    const trades = parseDABTrades(dabCsv(row));
+    expect(trades).toHaveLength(0);
+  });
+
+  it("treats Einbuchung with Betrag > 0 as a buy", () => {
+    const row =
+      "005437959009;;Einbuchung;24.06.2022, 00:00:00;364263698;65 Stück;MICROSOFT    DL-,00000625;US5949181045;870747;;;;;;EUR;Abgerechnet;253,60;EUR;16.484,00;24.06.2022, 00:00:00;";
+    const trades = parseDABTrades(dabCsv(row));
+
+    expect(trades).toHaveLength(1);
+    expect(trades[0].side).toBe("buy");
+    expect(trades[0].yfTicker).toBe("MSFT");
+    expect(trades[0].qty).toBe(65);
+    expect(trades[0].amount).toBeCloseTo(16484);
+  });
+
+  it("skips Einbuchung with Betrag = 0 (free transfer / stock split)", () => {
+    const row =
+      "005437959009;;Einbuchung;28.03.2026, 01:15:24;402163661;200 Stück;KAWASAKI HEAVY IND.;JP3224200000;858920;;;;;;EUR;Abgerechnet;0,00;EUR;0,00;30.03.2026, 00:00:00;";
+    const trades = parseDABTrades(dabCsv(row));
+    expect(trades).toHaveLength(0);
+  });
+
+  it("parses Ausbuchung rows as sell", () => {
+    const row =
+      "005437959009;;Ausbuchung;03.07.2024, 00:00:00;391594313;2,1 Stück;VIRGIN GAL.HLDGS NEW O.N.;US92766K4031;A40EFX;;;;;;USD;Abgerechnet;129,60632;USD;-252,96;03.07.2024, 00:00:00;";
+    const trades = parseDABTrades(dabCsv(row));
+    expect(trades).toHaveLength(1);
+    expect(trades[0].side).toBe("sell");
+    expect(trades[0].qty).toBeCloseTo(2.1);
+    expect(trades[0].yfTicker).toBe("SPCE");
+  });
+
+  it("Kauf → Ausbuchung → Einbuchung sequence produces buy/sell/buy (no share-count doubling)", () => {
+    // Real-world SPCE currency-rebook: original buy, then DAB rebooks the position
+    // (Ausbuchung closes the old USD-denominated lot; Einbuchung opens a new EUR lot)
+    const kaufRow =
+      "005437959009;5437959009;Kauf;01.07.2024, 00:00:00;391594310;2,1 Stück;VIRGIN GAL.HLDGS NEW O.N.;US92766K4031;A40EFX;Tradegate;Limit;01.07.2024, 00:00:00;120,00;;EUR;Abgerechnet;120,00;EUR;252,00;01.07.2024, 10:00:00;";
+    const ausbuchungRow =
+      "005437959009;;Ausbuchung;03.07.2024, 00:00:00;391594313;2,1 Stück;VIRGIN GAL.HLDGS NEW O.N.;US92766K4031;A40EFX;;;;;;USD;Abgerechnet;129,60632;USD;-252,96;03.07.2024, 00:00:00;";
+    const einbuchungRow =
+      "005437959009;;Einbuchung;03.07.2024, 00:00:00;391594315;2,1 Stück;VIRGIN GAL.HLDGS NEW O.N.;US92766K4031;A40EFX;;;;;;EUR;Abgerechnet;129,61;EUR;272,18;03.07.2024, 00:00:00;";
+    const trades = parseDABTrades(dabCsv(kaufRow, ausbuchungRow, einbuchungRow));
+
+    // 3 rows → 3 trades (buy + sell + buy), not collapsed to 2 buys
+    expect(trades).toHaveLength(3);
+    const sides = trades.map((t) => t.side);
+    expect(sides).toEqual(["buy", "sell", "buy"]);
+
+    // All three reference the same ticker with qty 2.1
+    trades.forEach((t) => {
+      expect(t.yfTicker).toBe("SPCE");
+      expect(t.qty).toBeCloseTo(2.1);
+    });
+  });
+
+  it("skips rows with an unmapped ISIN", () => {
+    const row =
+      "005437959009;5437959009;Kauf;10.03.2025, 00:00:00;111111111;71 Stück;DWS ARTIFIC.INTELLIGEN.ND;DE0008474149;847414;Fondsgesellschaft;Bestens;12.03.2025, 00:00:00;;;EUR;Abgerechnet;503,42;EUR;35.733,82;20.04.2026, 00:00:00;";
+    const trades = parseDABTrades(dabCsv(row));
+    expect(trades).toHaveLength(0);
+  });
+
+  it("falls back to Aufgabedatum when execution date is missing", () => {
+    // Last two columns (Datum/Zeit) are empty; date comes from Aufgabedatum (col 3)
+    const row =
+      "005437959009;;Kauf;12.03.2025, 00:00:00;395390114;450 Stück;DAIICHI SANKYO CO. LTD;JP3475350009;A0F57T;Tradegate;Billigst;12.03.2025, 00:00:00;;;EUR;Teilausführung;21,94;EUR;9.882,00;;";
+    const trades = parseDABTrades(dabCsv(row));
+    expect(trades).toHaveLength(1);
+    expect(trades[0].date.getFullYear()).toBe(2025);
+    expect(trades[0].date.getMonth()).toBe(2); // March = 2 (0-indexed)
+  });
+
+  it("skips rows where both date columns are empty", () => {
+    const row =
+      "005437959009;;Kauf;;;450 Stück;DAIICHI SANKYO CO. LTD;JP3475350009;A0F57T;Tradegate;Billigst;;;;EUR;Teilausführung;21,94;EUR;9.882,00;;";
+    const trades = parseDABTrades(dabCsv(row));
+    expect(trades).toHaveLength(0);
+  });
+
+  it("handles European number format with period thousands and comma decimal", () => {
+    // 2.500 Stück × Betrag 50.000,00 EUR
+    const row =
+      "005437959009;5437959009;Kauf;28.03.2025, 00:00:00;999999999;2.500 Stück;NTT INC.;JP3735400008;873029;Tradegate;Billigst;28.03.2025, 00:00:00;;;EUR;Abgerechnet;20,00;EUR;50.000,00;28.03.2025, 14:00:00;";
+    const trades = parseDABTrades(dabCsv(row));
+    expect(trades).toHaveLength(1);
+    expect(trades[0].qty).toBe(2500);
+    expect(trades[0].amount).toBeCloseTo(50000);
+    expect(trades[0].price).toBeCloseTo(20); // 50000 / 2500
+  });
+
+  it("auto-detected by parseTrades() without explicit DAB call", () => {
+    const row =
+      "005437959009;5437959009;Kauf;14.08.2024, 00:00:00;392187540;200 Stück;INTEL CORP.       DL-,001;US4581401001;855681;Tradegate;Limit;14.08.2024, 00:00:00;18,60;;EUR;Abgerechnet;18,60;EUR;3.729,00;14.08.2024, 14:33:43;";
+    const trades = parseTrades(dabCsv(row));
+    expect(trades).toHaveLength(1);
+    expect(trades[0].yfTicker).toBe("INTC");
+    expect(trades[0].currency).toBe("EUR");
+  });
+
+  it("deduplicates same-day same-ISIN Einbuchung rows, keeping the highest amount (currency-rebook)", () => {
+    // Simulates the SPCE currency-rebook pattern: DAB emits two Einbuchung
+    // rows on the same day for the same ISIN — one with the intermediate USD
+    // valuation (lower EUR amount) and one with the final EUR settlement
+    // (higher EUR amount).  Only the final one should survive.
+    const lowerAmountRow =
+      "005437959009;;Einbuchung;03.07.2024, 00:00:00;391594314;2,1 Stück;VIRGIN GAL.HLDGS NEW O.N.;US92766K4031;A40EFX;;;;;;EUR;Abgerechnet;120,00;EUR;252,00;03.07.2024, 00:00:00;";
+    const higherAmountRow =
+      "005437959009;;Einbuchung;03.07.2024, 00:00:00;391594315;2,1 Stück;VIRGIN GAL.HLDGS NEW O.N.;US92766K4031;A40EFX;;;;;;EUR;Abgerechnet;129,61;EUR;272,18;03.07.2024, 00:00:00;";
+    const trades = parseDABTrades(dabCsv(lowerAmountRow, higherAmountRow));
+
+    // Both rows have the same ISIN and date → deduplicated to one
+    expect(trades).toHaveLength(1);
+    // The higher-amount row is kept
+    expect(trades[0].amount).toBeCloseTo(272.18);
+  });
+
+  it("keeps both Einbuchung rows when they are on different days (separate transfers)", () => {
+    const row1 =
+      "005437959009;;Einbuchung;24.06.2022, 00:00:00;364263698;65 Stück;MICROSOFT    DL-,00000625;US5949181045;870747;;;;;;EUR;Abgerechnet;253,60;EUR;16.484,00;24.06.2022, 00:00:00;";
+    const row2 =
+      "005437959009;;Einbuchung;25.06.2022, 00:00:00;364263699;30 Stück;MICROSOFT    DL-,00000625;US5949181045;870747;;;;;;EUR;Abgerechnet;253,60;EUR;7.608,00;25.06.2022, 00:00:00;";
+    const trades = parseDABTrades(dabCsv(row1, row2));
+
+    expect(trades).toHaveLength(2);
+    const amounts = trades.map((t) => t.amount).sort((a, b) => a - b);
+    expect(amounts[0]).toBeCloseTo(7608);
+    expect(amounts[1]).toBeCloseTo(16484);
+  });
+
+  it("does not deduplicate same-day same-ISIN Kauf rows (legitimate double buy)", () => {
+    // Two separate buy orders for MSFT on the same day — both must be kept
+    const buyRow1 =
+      "005437959009;5437959009;Kauf;14.08.2024, 00:00:00;392187540;100 Stück;INTEL CORP.       DL-,001;US4581401001;855681;Tradegate;Limit;14.08.2024, 00:00:00;18,60;;EUR;Abgerechnet;18,60;EUR;1.864,50;14.08.2024, 10:00:00;";
+    const buyRow2 =
+      "005437959009;5437959009;Kauf;14.08.2024, 00:00:00;392187541;100 Stück;INTEL CORP.       DL-,001;US4581401001;855681;Tradegate;Limit;14.08.2024, 00:00:00;18,60;;EUR;Abgerechnet;18,60;EUR;1.864,50;14.08.2024, 15:30:00;";
+    const trades = parseDABTrades(dabCsv(buyRow1, buyRow2));
+
+    expect(trades).toHaveLength(2);
+  });
+
+  it("multiple rows parsed into correct trade count", () => {
+    const buyRow =
+      "005437959009;5437959009;Kauf;14.08.2024, 00:00:00;392187540;200 Stück;INTEL CORP.       DL-,001;US4581401001;855681;Tradegate;Limit;14.08.2024, 00:00:00;18,60;;EUR;Abgerechnet;18,60;EUR;3.729,00;14.08.2024, 14:33:43;";
+    const sellRow =
+      "005437959009;5437959009;Verkauf;29.05.2026, 00:00:00;403289002;15 Stück;VOLKSWAGEN AG VZO O.N.;DE0007664039;766403;Tradegate;Bestens;30.06.2026, 00:00:00;;;EUR;Abgerechnet;92,84;EUR;-1.383,60;29.05.2026, 14:05:44;";
+    const dividendRow =
+      "005437959009;5437959009;Ausschüttung;13.05.2026, 00:00:00;;22 Stück;RHEINMETALL AG;DE0007030009;703000;;;;;;EUR;Abgerechnet;11,50;EUR;-186,28;;";
+    const trades = parseDABTrades(dabCsv(buyRow, sellRow, dividendRow));
+    // dividend skipped → 2 trades
+    expect(trades).toHaveLength(2);
+    expect(trades.filter((t) => t.side === "buy")).toHaveLength(1);
+    expect(trades.filter((t) => t.side === "sell")).toHaveLength(1);
+  });
+});
+
+// ── Format detection ───────────────────────────────────────────────────────────
+
+describe("isDABFormat", () => {
+  it("returns true for a DAB bank CSV header", () => {
+    const csv = dabCsv(
+      "005437959009;5437959009;Kauf;14.08.2024, 00:00:00;392187540;200 Stück;INTEL CORP.       DL-,001;US4581401001;855681;Tradegate;Limit;14.08.2024, 00:00:00;18,60;;EUR;Abgerechnet;18,60;EUR;3.729,00;14.08.2024, 14:33:43;"
+    );
+    expect(isDABFormat(csv)).toBe(true);
+  });
+
+  it("returns false for a Rakuten JP CSV", () => {
+    const csv = [
+      "約定日,受渡日,銘柄コード,銘柄名,売買区分,数量［株］,受渡金額［円］",
+      '"2025/06/15","2025/06/17","7267","本田技研","買付","100","160,250"',
+    ].join("\n");
+    expect(isDABFormat(csv)).toBe(false);
+  });
+
+  it("returns false for an unrelated CSV", () => {
+    expect(isDABFormat("Name,Value\nFoo,123\n")).toBe(false);
+  });
+});
+
+describe("isRakutenFormat", () => {
+  it("returns true for a Rakuten JP stocks CSV", () => {
+    const csv = "約定日,受渡日,銘柄コード,銘柄名,売買区分\n";
+    expect(isRakutenFormat(csv)).toBe(true);
+  });
+
+  it("returns true for a Rakuten investment trust CSV", () => {
+    const csv = "約定日,受渡日,ファンド名,取引,数量［口］\n";
+    expect(isRakutenFormat(csv)).toBe(true);
+  });
+
+  it("returns true for a Rakuten US stocks CSV", () => {
+    const csv = "約定日,受渡日,ティッカー,銘柄名,売買区分\n";
+    expect(isRakutenFormat(csv)).toBe(true);
+  });
+
+  it("returns false for a DAB bank CSV", () => {
+    expect(isRakutenFormat(dabCsv(""))).toBe(false);
+  });
+
+  it("returns false for an unrelated CSV", () => {
+    expect(isRakutenFormat("Name,Value\nFoo,123\n")).toBe(false);
+  });
+});
+
+// ── parseRakutenTrades (named export, same behaviour as parseTrades for Rakuten) ──
+
+describe("parseRakutenTrades", () => {
+  it("parses JP stock trades identically to parseTrades", () => {
+    const csv = [
+      "約定日,受渡日,銘柄コード,銘柄名,市場名称,口座区分,取引区分,売買区分,信用区分,弁済期限,数量［株］,単価［円］,手数料［円］,税金等［円］,諸費用［円］,税区分,受渡金額［円］",
+      '"2025/06/15","2025/06/17","7267","本田技研","東証","特定","現物","買付","-","-","100","1,602.5","0","0","0","-","160,250"',
+    ].join("\n");
+
+    const via_parseTrades   = parseTrades(csv);
+    const via_parseRakuten  = parseRakutenTrades(csv);
+
+    expect(via_parseRakuten).toHaveLength(1);
+    expect(via_parseRakuten[0].tickerCode).toBe(via_parseTrades[0].tickerCode);
+    expect(via_parseRakuten[0].qty).toBe(via_parseTrades[0].qty);
+    expect(via_parseRakuten[0].amount).toBe(via_parseTrades[0].amount);
+  });
+
+  it("throws on unsupported CSV format", () => {
+    expect(() => parseRakutenTrades("Name,Value\nFoo,123\n")).toThrow(
+      "Unsupported CSV format"
+    );
   });
 });

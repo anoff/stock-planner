@@ -4,11 +4,11 @@ const ja: Translations = {
   // ── App shell ──────────────────────────────────────────────────────────────
   appTitle: 'ストックプランナー',
   tabResearch: 'リサーチ',
-  tabPortfolio: '楽天証券分析',
+  tabPortfolio: 'ポートフォリオ分析',
   descResearch:
     'ティッカーを入力して、バリュエーション・品質・財務健全性・成長性・モメンタムのスコアを含む定量的リサーチレポートを取得します。',
   descPortfolio: (benchmark) =>
-    `楽天証券のCSVをドロップして、${benchmark}とのパフォーマンスを分析します`,
+    `楽天証券またはDABバンクのCSVをドロップして、${benchmark}とのパフォーマンスを分析します`,
 
   // ── Header controls ────────────────────────────────────────────────────────
   showValues: '表示する',
@@ -47,7 +47,7 @@ const ja: Translations = {
   footer:
     'データはYahoo Financeより。すべての計算はブラウザで実行されます。',
   footerDesc:
-    'ティッカーで企業のポートフォリオや株価パフォーマンスをリサーチ。楽天証券の取引履歴を分析。',
+    'ティッカーで企業のポートフォリオや株価パフォーマンスをリサーチ。証券会社の取引履歴を分析（楽天証券・DABバンク）。',
   footerPrivacy:
     '🔒 ユーザーデータはサーバーに保存されません — すべての処理はブラウザ内で実行されます。',
   footerGithub: 'GitHub',
@@ -84,6 +84,7 @@ const ja: Translations = {
   colName: '銘柄名',
   colProfit: '利益',
   colTicker: 'ティッカー',
+  colShares: '株数',
   colCagr: 'CAGR',
   colAlphaCagr: 'α CAGR',
   col1m: '1ヶ月',
@@ -108,10 +109,11 @@ const ja: Translations = {
   },
 
   // ── Drop zone ─────────────────────────────────────────────────────────────
-  dropHere: '楽天証券のCSVをここにドロップ',
+  selectProvider: '証券会社を選択',
+  changeProvider: '変更',
+  dropHere: '取引履歴CSVをここにドロップ',
   dropMoreFiles: 'ファイルをドロップするか参照して追加',
-  dropHint:
-    'JP・US・ファンドCSVの混在が可能 — ファイル間の重複は自動的に除去されます',
+  dropHint: 'ファイル間の重複は自動的に除去されます',
   browseFiles: 'ファイルを参照',
   fixErrorsBeforeAnalyzing: '分析前にエラーを修正してください',
   dropTradesSuffix: '件の取引',

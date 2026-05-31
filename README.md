@@ -8,7 +8,7 @@ Stock Planner has two complementary tools:
 
 **Research** (main tab) — enter any set of Yahoo Finance ticker symbols and get a structured, data-driven report within seconds. The app fetches up to 5 years of price history and the latest fundamental data, then scores each stock across five categories: Valuation, Quality, Health, Growth, and Momentum. The result is a ranked overview table and per-ticker detail cards that break down every metric — useful both for initial screening and for monitoring positions you already follow.
 
-**Rakuten Analysis** (second tab) — drag and drop a trade history CSV exported from Rakuten Securities and immediately see how each position has performed versus a benchmark. The app handles Shift-JIS encoding automatically, computes CAGR and alpha for every holding, and produces a fuzzy action signal (Hold, Sell, Buy More, Watch, Take Profit) that accounts for how long you have held the position and whether recent momentum confirms the long-term trend.
+**Portfolio Analysis** (second tab) — drag and drop a trade history CSV exported from Rakuten Securities or DAB bank and immediately see how each position has performed versus a benchmark. The app handles both Shift-JIS (Rakuten) and UTF-8 (DAB) encodings automatically, computes CAGR and alpha for every holding, and produces a fuzzy action signal (Hold, Sell, Buy More, Watch, Take Profit) that accounts for how long you have held the position and whether recent momentum confirms the long-term trend.
 
 ## The thinking behind it
 
@@ -35,13 +35,26 @@ Open [http://localhost:5173/stock-planner/](http://localhost:5173/stock-planner/
 3. Click **Run Research** and wait ~10–20 seconds for data to load
 4. Review the overview table and expand individual tickers for scoring detail
 
-### Rakuten Analysis workflow
+### Portfolio Analysis workflow
+
+#### Rakuten Securities
 
 1. Log in to Rakuten Securities → 口座管理 → 取引履歴 → 商品別売買履歴
 2. Export JP stocks and/or investment trusts as CSV
-3. Switch to the **Rakuten Analysis** tab in Stock Planner
+3. Switch to the **Portfolio Analysis** tab in Stock Planner
 4. Drag the CSV file onto the drop zone (or paste the CSV text)
 5. Select a benchmark and review the metrics table and charts
+
+#### DAB bank
+
+1. Log in to DAB bank → Depot → Aufträge → export order history as CSV
+2. Switch to the **Portfolio Analysis** tab in Stock Planner
+3. Drag the CSV file onto the drop zone
+4. Select a benchmark and review the metrics table and charts
+
+> **ISIN mapping:** DAB exports identify securities by ISIN rather than exchange ticker. The app ships with a built-in mapping for common stocks (see `DAB_ISIN_MAPPINGS` in `web/src/utils/csv.ts`). Securities without a mapping are silently skipped — add entries to the table to include additional instruments.
+
+> **Mixing brokers:** DAB amounts are in EUR and Rakuten amounts are in JPY. Dropping files from both brokers at the same time will trigger a warning and produce meaningless portfolio totals. Analyze each broker separately.
 
 ## Development
 

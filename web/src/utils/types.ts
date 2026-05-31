@@ -1,4 +1,4 @@
-/** A single trade parsed from a Rakuten CSV. */
+/** A single trade parsed from a Rakuten or DAB bank CSV. */
 export interface Trade {
   date: Date;
   tickerCode: string;
@@ -12,6 +12,10 @@ export interface Trade {
    *  and amount is in JPY, so qty × proxy-price would be nonsensical.
    *  Valuation must use the proxy ticker's return ratio instead. */
   isFund?: boolean;
+  /** Base currency of the amount and price fields.
+   *  Rakuten trades (JP stocks, US stocks, funds): "JPY" (default when absent).
+   *  DAB bank trades: "EUR" — amounts are already converted to EUR by the broker. */
+  currency?: "JPY" | "EUR";
 }
 
 /** Aggregated position for one security. */

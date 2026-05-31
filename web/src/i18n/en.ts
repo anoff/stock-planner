@@ -4,11 +4,11 @@ const en: Translations = {
   // ── App shell ──────────────────────────────────────────────────────────────
   appTitle: 'Stock Planner',
   tabResearch: 'Research',
-  tabPortfolio: 'Rakuten Analysis',
+  tabPortfolio: 'Portfolio Analysis',
   descResearch:
     'Enter tickers to get a quantitative research report with scoring across Valuation, Quality, Health, Growth & Momentum.',
   descPortfolio: (benchmark) =>
-    `Drop one or more Rakuten Securities CSVs to analyze performance vs ${benchmark}`,
+    `Drop one or more Rakuten Securities or DAB bank CSVs to analyze performance vs ${benchmark}`,
 
   // ── Header controls ────────────────────────────────────────────────────────
   showValues: 'show values',
@@ -47,7 +47,7 @@ const en: Translations = {
   footer:
     'Data sourced from Yahoo Finance. All calculations are performed in the browser.',
   footerDesc:
-    'Research company portfolio and stock performance via ticker. Analyze Rakuten trade history.',
+    'Research company portfolio and stock performance via ticker. Analyze broker trade history (Rakuten Securities, DAB bank).',
   footerPrivacy:
     '🔒 No user data is stored on a server — all processing takes place locally in your browser.',
   footerGithub: 'GitHub',
@@ -84,6 +84,7 @@ const en: Translations = {
   colName: 'Name',
   colProfit: 'Profit',
   colTicker: 'Ticker',
+  colShares: 'Shares',
   colCagr: 'CAGR',
   colAlphaCagr: 'α CAGR',
   col1m: '1M',
@@ -108,10 +109,11 @@ const en: Translations = {
   },
 
   // ── Drop zone ─────────────────────────────────────────────────────────────
-  dropHere: 'Drop your Rakuten CSVs here',
+  selectProvider: 'Select your broker',
+  changeProvider: 'change',
+  dropHere: 'Drop your trade history CSVs here',
   dropMoreFiles: 'Drop more files or browse to add',
-  dropHint:
-    'You can mix JP, US and fund CSV files — duplicates across files are removed automatically',
+  dropHint: 'Duplicates across files are removed automatically',
   browseFiles: 'Browse files',
   fixErrorsBeforeAnalyzing: 'Fix errors before analyzing',
   dropTradesSuffix: ' trades',

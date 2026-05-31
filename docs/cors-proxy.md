@@ -26,7 +26,7 @@ The app reads the worker URL from the `VITE_CORS_PROXY` build-time env var and a
 
 | Context | Proxy used |
 |---|---|
-| `npm run dev` | Vite dev server (`/api/*` proxy — CORS_PROXY not called) |
+| `npm run dev` | Cloudflare Worker (via `web/.env.local`) |
 | PR preview build | Cloudflare Worker (via GitHub secret) |
 | Production build (`main`) | Cloudflare Worker (via GitHub secret) |
 | Local production build | Cloudflare Worker (via `web/.env.production`) |
@@ -92,6 +92,7 @@ Open the live site, run a Research query, and check DevTools → Network. Reques
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| Worker returns 403 on localhost | `http://localhost:*` not in `ALLOWED_ORIGINS` | Add the localhost origin to `ALLOWED_ORIGINS` in `proxy/src/index.ts` and redeploy |
 | Worker returns 403 | Target not in allowlist | URL must start with `https://query1.finance.yahoo.com/` or `query2.*` |
 | Worker returns 429 | Free tier exhausted (>100k/day) | Wait for reset at 00:00 UTC or upgrade to Workers Paid ($5/mo) |
 | Data loads in dev but not production | `VITE_CORS_PROXY` not injected | Confirm the GitHub secret exists and the `env:` block is in the build step |

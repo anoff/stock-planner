@@ -1,5 +1,7 @@
-import { useCallback, useState } from "react";
-import { decodeFile, parseTrades, deduplicateTrades } from "../utils/csv";
+import { useCallback, useRef, useState } from "react";
+import { decodeFile, deduplicateTrades } from "../utils/csv";
+import { PROVIDERS } from "../utils/providers";
+import type { ProviderConfig } from "../utils/providers";
 import type { Trade } from "../utils/types";
 import { useLanguage } from "../i18n";
 
@@ -10,13 +12,24 @@ interface StagedFile {
 }
 
 interface DropZoneProps {
-  onAnalyze: (trades: Trade[]) => void;
+  onAnalyze: (trades: Trade[], baseCurrency: "EUR" | "JPY") => void;
 }
 
-async function parseFileBuffer(data: ArrayBuffer, fileName: string): Promise<StagedFile> {
+async function parseFileBuffer(
+  data: ArrayBuffer,
+  fileName: string,
+  provider: ProviderConfig
+): Promise<StagedFile> {
   try {
     const text = decodeFile(data);
-    const trades = parseTrades(text);
+    if (!provider.validate(text)) {
+      return {
+        fileName,
+        trades: [],
+        error: `File does not look like a ${provider.name} export — check the selected provider.`,
+      };
+    }
+    const trades = provider.parse(text);
     return { fileName, trades };
   } catch (err) {
     return {
@@ -30,19 +43,38 @@ async function parseFileBuffer(data: ArrayBuffer, fileName: string): Promise<Sta
 export default function DropZone({ onAnalyze }: DropZoneProps) {
   const [dragOver, setDragOver] = useState(false);
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<ProviderConfig | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
 
+  // ── Provider selection ──────────────────────────────────────────────────────
+
+  const handleSelectProvider = useCallback((provider: ProviderConfig) => {
+    setSelectedProvider(provider);
+    setStagedFiles([]); // clear files when provider changes
+  }, []);
+
+  const handleChangeProvider = useCallback(() => {
+    setSelectedProvider(null);
+    setStagedFiles([]);
+  }, []);
+
+  // ── File handling ───────────────────────────────────────────────────────────
+
   const addFiles = useCallback(async (fileList: FileList) => {
+    if (!selectedProvider) return;
+    const provider = selectedProvider;
     const incoming = await Promise.all(
-      Array.from(fileList).map((f) => f.arrayBuffer().then((buf) => parseFileBuffer(buf, f.name)))
+      Array.from(fileList).map((f) =>
+        f.arrayBuffer().then((buf) => parseFileBuffer(buf, f.name, provider))
+      )
     );
     setStagedFiles((prev) => {
-      // Skip files whose name is already staged
       const existingNames = new Set(prev.map((f) => f.fileName));
       const novel = incoming.filter((f) => !existingNames.has(f.fileName));
       return [...prev, ...novel];
     });
-  }, []);
+  }, [selectedProvider]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -57,7 +89,6 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files.length > 0) {
         addFiles(e.target.files);
-        // Reset input so the same file can be re-added after removal
         e.target.value = "";
       }
     },
@@ -69,6 +100,7 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
   }, []);
 
   const handleAnalyze = useCallback(() => {
+    if (!selectedProvider) return;
     const merged = stagedFiles.flatMap((f) => f.trades);
     const deduped = deduplicateTrades(merged);
     if (deduped.length < merged.length) {
@@ -76,23 +108,120 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
         `Deduplication: ${merged.length} total trades → ${deduped.length} after removing ${merged.length - deduped.length} duplicate(s)`
       );
     }
-    onAnalyze(deduped);
-  }, [stagedFiles, onAnalyze]);
+    onAnalyze(deduped, selectedProvider.currency);
+  }, [stagedFiles, selectedProvider, onAnalyze]);
 
-  // ── Derived stats ─────────────────────────────────────────────────────────
+  // ── Derived stats ───────────────────────────────────────────────────────────
   const allTrades = deduplicateTrades(stagedFiles.flatMap((f) => f.trades));
   const totalTrades = allTrades.length;
-  const totalPositions = new Set(allTrades.filter((t) => t.side === "buy").map((t) => t.tickerCode)).size;
+  const totalPositions = new Set(
+    allTrades.filter((t) => t.side === "buy").map((t) => t.tickerCode)
+  ).size;
   const hasFiles = stagedFiles.length > 0;
   const hasErrors = stagedFiles.some((f) => f.error);
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div style={{ maxWidth: 600, margin: "32px auto" }}>
-      {/* Drop target */}
+
+      {/* ── Provider selector ── */}
+      {!selectedProvider ? (
+        <div style={{ marginBottom: 24 }}>
+          <p style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: "var(--text-muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: 12,
+          }}>
+            {t.selectProvider}
+          </p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {PROVIDERS.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => handleSelectProvider(p)}
+                style={{
+                  flex: "1 1 220px",
+                  padding: "16px 20px",
+                  textAlign: "left",
+                  backgroundColor: "var(--bg-card)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  transition: "border-color 0.15s, background-color 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--accent)";
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--accent-surface)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)";
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--bg-card)";
+                }}
+              >
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>
+                  {p.name}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
+                  {p.description}
+                </div>
+                <div style={{
+                  display: "inline-block",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "var(--accent)",
+                  background: "var(--accent-surface)",
+                  border: "1px solid var(--accent)",
+                  borderRadius: 4,
+                  padding: "2px 8px",
+                }}>
+                  {p.currency}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        /* ── Selected provider banner ── */
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "10px 16px",
+          marginBottom: 12,
+          backgroundColor: "var(--accent-surface)",
+          border: "1px solid var(--accent)",
+          borderRadius: 8,
+          fontSize: 13,
+        }}>
+          <span>
+            <span style={{ fontWeight: 700, color: "var(--text)" }}>{selectedProvider.name}</span>
+            <span style={{ color: "var(--text-muted)", marginLeft: 8 }}>· {selectedProvider.currency}</span>
+          </span>
+          <button
+            onClick={handleChangeProvider}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 12,
+              color: "var(--accent)",
+              padding: "0 2px",
+            }}
+          >
+            {t.changeProvider}
+          </button>
+        </div>
+      )}
+
+      {/* ── Drop target (disabled until provider selected) ── */}
       <div
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragOver={(e) => { if (selectedProvider) { e.preventDefault(); setDragOver(true); } }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
+        onClick={() => { if (selectedProvider) fileInputRef.current?.click(); }}
         style={{
           padding: hasFiles ? "20px 24px" : "48px 24px",
           textAlign: "center",
@@ -101,7 +230,8 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
           borderRadius: hasFiles ? "14px 14px 0 0" : 14,
           borderBottom: hasFiles ? "none" : undefined,
           transition: "background-color 0.2s, padding 0.2s",
-          cursor: "pointer",
+          cursor: selectedProvider ? "pointer" : "not-allowed",
+          opacity: selectedProvider ? 1 : 0.45,
         }}
       >
         {!hasFiles && (
@@ -115,38 +245,48 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
             {t.dropHint}
           </p>
         )}
-        <label
+        {/* Browse button — stopPropagation prevents the click reaching the div above */}
+        <button
+          onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+          disabled={!selectedProvider}
           style={{
             display: "inline-block",
             marginTop: hasFiles ? 8 : 0,
             padding: "6px 18px",
-            backgroundColor: "var(--accent)",
+            backgroundColor: selectedProvider ? "var(--accent)" : "var(--text-muted)",
             color: "#fff",
+            border: "none",
             borderRadius: 8,
-            cursor: "pointer",
+            cursor: selectedProvider ? "pointer" : "not-allowed",
             fontSize: 13,
             fontWeight: 600,
             transition: "background-color 0.15s",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLLabelElement).style.backgroundColor = "var(--accent-hover)";
+            if (selectedProvider)
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--accent-hover)";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLLabelElement).style.backgroundColor = "var(--accent)";
+            if (selectedProvider)
+              (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--accent)";
           }}
         >
           {t.browseFiles}
-          <input
-            type="file"
-            accept=".csv"
-            multiple
-            onChange={handleChange}
-            style={{ display: "none" }}
-          />
-        </label>
+        </button>
       </div>
 
-      {/* File list + summary + analyze button */}
+      {/* Hidden file input — shared by the drop zone click and the browse button */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv"
+        multiple
+        onChange={handleChange}
+        disabled={!selectedProvider}
+        style={{ display: "none" }}
+      />
+
+      {/* ── File list + summary + analyze button ── */}
       {hasFiles && (
         <div
           style={{
@@ -156,7 +296,6 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
             borderRadius: "0 0 14px 14px",
           }}
         >
-          {/* File rows */}
           <ul style={{ listStyle: "none", margin: 0, padding: "4px 0" }}>
             {stagedFiles.map((f) => (
               <li
@@ -170,10 +309,7 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
                   fontSize: 13,
                 }}
               >
-                {/* File icon */}
                 <span style={{ opacity: 0.5, flexShrink: 0 }}>📄</span>
-
-                {/* Name */}
                 <span
                   style={{
                     flex: 1,
@@ -186,8 +322,6 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
                 >
                   {f.fileName}
                 </span>
-
-                {/* Trade count or error badge */}
                 {f.error ? (
                   <span
                     style={{
@@ -217,8 +351,6 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
                     {t.tradesBadge(f.trades.length)}
                   </span>
                 )}
-
-                {/* Remove */}
                 <button
                   onClick={() => removeFile(f.fileName)}
                   title={t.removeFile}
@@ -242,7 +374,6 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
             ))}
           </ul>
 
-          {/* Summary + Analyze row */}
           <div
             style={{
               display: "flex",
@@ -265,7 +396,6 @@ export default function DropZone({ onAnalyze }: DropZoneProps) {
                 </>
               )}
             </span>
-
             <button
               className="btn-primary"
               onClick={handleAnalyze}

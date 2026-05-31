@@ -6,6 +6,7 @@ import { useLanguage } from "../i18n";
 interface Props {
   metrics: PositionMetrics[];
   benchmark: string;
+  baseCurrency: "EUR" | "JPY";
   /** When provided, rows become clickable to show/hide per-position research detail. */
   onSelectTicker?: (ticker: string | null) => void;
   /** The currently expanded ticker (yfTicker value). */
@@ -25,9 +26,19 @@ function fmtPortfolioPct(val: number | null): string {
   return `${pct >= 5 ? pct.toFixed(0) : pct.toFixed(1)}%`;
 }
 
-function fmtMan(val: number): string {
-  const man = val / 10000;
-  return `${man >= 0 ? "+" : ""}${man.toFixed(1)}万`;
+function fmtQty(qty: number): string {
+  // Show up to 4 significant decimal places but strip trailing zeros
+  return qty % 1 === 0 ? qty.toFixed(0) : parseFloat(qty.toFixed(4)).toString();
+}
+
+function fmtProfit(val: number, currency: "EUR" | "JPY"): string {
+  if (currency === "JPY") {
+    const man = val / 10000;
+    return `${man >= 0 ? "+" : ""}${man.toFixed(1)}万`;
+  }
+  // EUR: display in k with one decimal
+  const k = val / 1000;
+  return `${k >= 0 ? "+" : ""}${k.toFixed(1)}k`;
 }
 
 function pctColor(val: number | null): string {
@@ -57,7 +68,7 @@ function rowKey(m: PositionMetrics): string {
 
 const MASKED = "• • •";
 
-export default function MetricsTable({ metrics, benchmark, onSelectTicker, selectedTicker }: Props) {
+export default function MetricsTable({ metrics, benchmark, baseCurrency, onSelectTicker, selectedTicker }: Props) {
   const { maskValues } = useTheme();
   const { t } = useLanguage();
 
@@ -66,8 +77,9 @@ export default function MetricsTable({ metrics, benchmark, onSelectTicker, selec
     .reduce((sum, m) => sum + m.currentValue, 0);
 
   const HEADERS = [
-    { label: t.colTicker,      align: "left"  },
-    { label: t.colProfit,      align: "right" },
+    { label: t.colTicker,       align: "left"  },
+    { label: t.colShares,       align: "right" },
+    { label: `${t.colProfit} [${baseCurrency}]`, align: "right" },
     { label: t.colPortfolioPct, align: "right" },
     { label: t.colAlphaCagr,   align: "right" },
     { label: t.colDaysHeld,    align: "right" },
@@ -163,8 +175,11 @@ export default function MetricsTable({ metrics, benchmark, onSelectTicker, selec
                       <div>{m.yfTicker}</div>
                       <div style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 400, marginTop: 1 }}>{m.name}</div>
                     </td>
+                    <td className="col-right" style={{ color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                      {maskValues ? MASKED : (isClosed ? 0 : fmtQty(m.totalQty))}
+                    </td>
                     <td className="col-right" style={{ color: maskValues ? "var(--text-muted)" : pctColor(profit), fontVariantNumeric: "tabular-nums" }}>
-                      {maskValues ? MASKED : fmtMan(profit)}
+                      {maskValues ? MASKED : fmtProfit(profit, baseCurrency)}
                     </td>
                     <td className="col-right" style={{ color: "var(--text-muted)" }}>
                       {maskValues ? MASKED : fmtPortfolioPct(portfolioPct)}

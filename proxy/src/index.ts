@@ -21,6 +21,8 @@ const ALLOWED_HOSTS: ReadonlySet<string> = new Set([
 /** Origins that are allowed to use this proxy. */
 const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
   'https://stocks.anoff.io',
+  'http://localhost:5173',   // Vite dev server (npm run dev)
+  'http://localhost:4173',   // Vite preview server (npm run preview)
 ]);
 
 /** Headers forwarded from the upstream response (everything else is dropped). */

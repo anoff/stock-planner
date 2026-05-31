@@ -10,6 +10,29 @@ import { priceOn, periodReturn } from "./prices";
 
 export const DEFAULT_BENCHMARK_TICKER = "^GSPC";
 
+// ── Currency helpers ─────────────────────────────────────────────
+
+/**
+ * Determine the price currency that Yahoo Finance uses for a given ticker.
+ *
+ * Rules (exchange suffix-based):
+ *  - *.DE, *.PA, *.AS, *.MI, *.MC, *.F, *.BE  → EUR (major European exchanges)
+ *  - *.T, *.OS                                  → JPY (Tokyo / Osaka)
+ *  - *.L                                        → GBP (London)
+ *  - *.AX                                       → AUD (ASX)
+ *  - everything else (no suffix)                → USD (US exchanges)
+ *
+ * Used by aggregatePositions to select the correct FX rate when converting
+ * current prices into the portfolio's base currency.
+ */
+export function getTickerCurrency(yfTicker: string): "EUR" | "USD" | "JPY" | "GBP" | "AUD" {
+  if (/\.(DE|PA|AS|MI|MC|F|BE)$/i.test(yfTicker)) return "EUR";
+  if (/\.(T|OS)$/i.test(yfTicker)) return "JPY";
+  if (/\.L$/i.test(yfTicker)) return "GBP";
+  if (/\.AX$/i.test(yfTicker)) return "AUD";
+  return "USD";
+}
+
 // ── Trade replay ────────────────────────────────────────────────
 
 interface ReplayResult {
@@ -119,32 +142,76 @@ export function aggregatePositions(
     const currentPrice = priceOn(history, now);
     if (currentPrice == null) continue;
 
+    // Determine the portfolio base currency from the first buy trade.
+    // Rakuten trades have no currency field (defaults to "JPY").
+    // DAB bank trades set currency: "EUR".
+    const baseCurrency = buys[0].currency ?? "JPY";
+
     // For investment-trust positions the qty is in 口 (trust units) and
     // totalCost is in JPY, so qty × proxy-price (USD) would be nonsensical.
     // Instead, scale the cost basis by the proxy ticker's return since the
     // first buy date: currentValue = totalCost × (priceNow / priceAtBuy).
     //
-    // For US stocks (yfTicker has no ".T" suffix and is not a fund) the
-    // current price from Yahoo Finance is in USD.  Multiply by the latest
-    // USDJPY=X rate so the result is in JPY, consistent with the JPY cost
-    // basis stored in t.amount.
+    // For all other positions the current price from Yahoo Finance must be
+    // converted into the portfolio's base currency using live FX rates:
+    //
+    //  Rakuten (JPY base):
+    //    *.T  → price already in JPY, no conversion needed
+    //    US   → price in USD × USDJPY=X
+    //
+    //  DAB bank (EUR base):
+    //    *.DE / *.PA / etc. → price in EUR, no conversion needed
+    //    US (no suffix)     → price in USD ÷ EURUSD=X
+    //    *.T                → price in JPY ÷ EURJPY=X
+    //    *.L                → price in GBP — treated as USD fallback (no GBP rate fetched)
+    //    *.AX               → price in AUD — treated as USD fallback
     let currentValue: number;
     const isFund = buys[0].isFund === true;
-    const isUsStock = !isFund && !yfTicker.endsWith(".T");
     if (isFund) {
       const priceAtBuy = priceOn(history, firstBuyDate);
       currentValue =
         priceAtBuy != null && priceAtBuy > 0
           ? totalCost * (currentPrice / priceAtBuy)
           : totalCost; // fallback: 0 % return if history doesn't reach buy date
-    } else if (isUsStock) {
-      const usdJpyRate = priceOn(priceData["USDJPY=X"], now);
-      // Fallback: if the USDJPY=X fetch failed, use the raw USD value so the
-      // position still appears (return % will still be wrong in that case, but
-      // at least the row is visible rather than silently missing).
-      currentValue = remainingQty * currentPrice * (usdJpyRate ?? 1);
+    } else if (baseCurrency === "EUR") {
+      const priceCurrency = getTickerCurrency(yfTicker);
+      if (priceCurrency === "EUR") {
+        // European tickers priced in EUR — matches DAB base currency directly
+        currentValue = remainingQty * currentPrice;
+      } else if (priceCurrency === "JPY") {
+        // Japanese tickers priced in JPY — convert using EURJPY=X.
+        // If the FX rate is unavailable, skip this position entirely rather
+        // than falling back to 1 (which would be ~165× off and inflate the
+        // portfolio return by orders of magnitude).
+        const eurJpyRate = priceOn(priceData["EURJPY=X"], now);
+        if (eurJpyRate == null) continue;
+        currentValue = remainingQty * currentPrice / eurJpyRate;
+      } else if (priceCurrency === "GBP") {
+        // LSE tickers (*.L) are quoted by Yahoo Finance in GBp (pence), not
+        // GBP (pounds).  Divide by 100 to convert pence → pounds, then divide
+        // by EURGBP=X to get EUR.  Skip if the FX rate isn't available.
+        const eurGbpRate = priceOn(priceData["EURGBP=X"], now);
+        if (eurGbpRate == null) continue;
+        currentValue = remainingQty * (currentPrice / 100) / eurGbpRate;
+      } else {
+        // USD (and other currencies treated as USD fallback) — convert using EURUSD=X.
+        // Same guard: skip rather than silently use a rate of 1 (~8% error).
+        const eurUsdRate = priceOn(priceData["EURUSD=X"], now);
+        if (eurUsdRate == null) continue;
+        currentValue = remainingQty * currentPrice / eurUsdRate;
+      }
     } else {
-      currentValue = remainingQty * currentPrice;
+      // JPY base (Rakuten — existing behaviour)
+      const isUsStock = !isFund && !yfTicker.endsWith(".T");
+      if (isUsStock) {
+        const usdJpyRate = priceOn(priceData["USDJPY=X"], now);
+        // Fallback: if the USDJPY=X fetch failed, use the raw USD value so the
+        // position still appears (return % will still be wrong in that case, but
+        // at least the row is visible rather than silently missing).
+        currentValue = remainingQty * currentPrice * (usdJpyRate ?? 1);
+      } else {
+        currentValue = remainingQty * currentPrice;
+      }
     }
 
     positions.push({

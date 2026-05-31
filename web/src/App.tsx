@@ -38,6 +38,7 @@ type AppState =
       trades: Trade[];
       tradeCount: number;
       warnings: string[];
+      baseCurrency: "EUR" | "JPY";
     }
   | { stage: "error"; message: string };
 
@@ -99,7 +100,7 @@ function App() {
 
   // ── Shared pipeline: positions → prices → metrics ────────────
   const processTrades = useCallback(
-    async (allTrades: Trade[]) => {
+    async (allTrades: Trade[], baseCurrency: "EUR" | "JPY") => {
       // Reset per-position research detail when a new analysis starts
       setSelectedAnalysisTicker(null);
       setAnalysisDetailStates({});
@@ -116,9 +117,14 @@ function App() {
           buyTrades.map((trade) => trade.yfTicker).filter((ticker) => ticker !== "")
         ),
         benchmarkTicker,
-        // Always fetch USD/JPY so metrics.ts can convert US stock current
-        // values from USD to JPY at the latest available rate.
+        // Always fetch USD/JPY so metrics.ts can convert Rakuten US stock
+        // current values from USD to JPY at the latest available rate.
         "USDJPY=X",
+        // For DAB bank portfolios (EUR base) also fetch EUR/USD, EUR/JPY and
+        // EUR/GBP so metrics.ts can convert US, Japanese and LSE-listed stock
+        // prices to EUR.  LSE tickers (*.L) are quoted in GBp (pence), so the
+        // GBP rate is required to convert them correctly.
+        ...(baseCurrency === "EUR" ? ["EURUSD=X", "EURJPY=X", "EURGBP=X"] : []),
       ];
 
       setState({ stage: "fetching", progress: 0, total: tickers.length });
@@ -152,14 +158,15 @@ function App() {
         trades: allTrades,
         tradeCount: buyTrades.length,
         warnings,
+        baseCurrency: baseCurrency,
       });
     },
     [benchmarkTicker, t]
   );
 
   const handleAnalyze = useCallback(
-    async (trades: Trade[]) => {
-      await processTrades(trades);
+    async (trades: Trade[], baseCurrency: "EUR" | "JPY") => {
+      await processTrades(trades, baseCurrency);
     },
     [processTrades]
   );
@@ -379,16 +386,17 @@ function App() {
 
                   return (
                     <>
-                      <Summary metrics={displayMetrics} benchmark={benchmarkName} />
+                      <Summary metrics={displayMetrics} benchmark={benchmarkName} baseCurrency={state.baseCurrency} />
 
                       <OutperformanceChart metrics={displayMetrics} benchmark={benchmarkName} />
 
-                      <MetricsTable
-                        metrics={displayMetrics}
-                        benchmark={benchmarkName}
-                        onSelectTicker={handleSelectAnalysisTicker}
-                        selectedTicker={selectedAnalysisTicker}
-                      />
+                       <MetricsTable
+                         metrics={displayMetrics}
+                         benchmark={benchmarkName}
+                         baseCurrency={state.baseCurrency}
+                         onSelectTicker={handleSelectAnalysisTicker}
+                         selectedTicker={selectedAnalysisTicker}
+                       />
 
                       {/* Per-position research detail panel — on-demand, cached per session */}
                       {selectedAnalysisTicker && (() => {

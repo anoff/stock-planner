@@ -71,6 +71,7 @@ export interface Translations {
   colName: string;
   colProfit: string;
   colTicker: string;
+  colShares: string;
   colCagr: string;
   colAlphaCagr: string;
   col1m: string;
@@ -85,6 +86,10 @@ export interface Translations {
   signalLabels: Record<string, string>;
 
   // ── Drop zone ─────────────────────────────────────────────────────────────
+  /** Heading above the provider cards: "Select your broker" */
+  selectProvider: string;
+  /** Link label to deselect the chosen provider and go back to the card list */
+  changeProvider: string;
   dropHere: string;
   dropMoreFiles: string;
   dropHint: string;
