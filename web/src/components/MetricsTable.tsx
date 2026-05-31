@@ -121,7 +121,7 @@ export default function MetricsTable({ metrics, benchmark, baseCurrency, onSelec
           </thead>
           <tbody>
             {sorted.map((m, idx) => {
-              const profit = m.currentValue - m.totalCost;
+              const profit = m.currentValue - m.totalCost + (m.realizedPnl ?? 0);
               const isTooEarlyStart = idx === rest.length && tooEarly.length > 0;
               const isClosedStart   = idx === rest.length + tooEarly.length && closed.length > 0;
               const isClosed        = m.signal === "⬛ Closed";

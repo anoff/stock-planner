@@ -135,6 +135,14 @@ export function aggregatePositions(
     const totalCost = totalBuyQty > 0 ? (remainingQty / totalBuyQty) * totalBuyCost : 0;
     const avgCost = remainingQty > 0 ? totalCost / remainingQty : 0;
 
+    // Realized P&L from shares already sold within this round (partial sells).
+    // soldSharesCost is the proportional cost attributed to the shares that were
+    // sold, so realizedPnl = proceeds − cost-of-sold-shares.
+    // This is 0 when there are no sells in the active round.
+    const totalSellProceeds = sells.reduce((sum, t) => sum + t.amount, 0);
+    const soldSharesCost = totalBuyQty > 0 ? (totalSellQty / totalBuyQty) * totalBuyCost : 0;
+    const realizedPnl = totalSellProceeds - soldSharesCost;
+
     const firstBuyDate = new Date(Math.min(...buys.map((t) => t.date.getTime())));
     const lastBuyDate = new Date(Math.max(...buys.map((t) => t.date.getTime())));
 
@@ -221,6 +229,7 @@ export function aggregatePositions(
       totalQty: remainingQty,
       avgCost,
       totalCost,
+      realizedPnl,
       currentPrice,
       currentValue,
       firstBuyDate,
@@ -487,6 +496,9 @@ export function closedToMetrics(
       totalQty: 0,
       avgCost: 0,
       totalCost: p.totalBuyCost,
+      // Closed positions have no remaining shares — all P&L is already captured
+      // in currentValue (= totalSellProceeds) vs totalCost (= totalBuyCost).
+      realizedPnl: 0,
       currentPrice: 0,
       currentValue: p.totalSellProceeds,
       firstBuyDate: p.firstBuyDate,

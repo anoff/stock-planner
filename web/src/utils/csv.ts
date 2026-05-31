@@ -189,7 +189,9 @@ const DAB_COL = {
  * Transaction mapping:
  *  - Kauf          → buy
  *  - Verkauf       → sell
- *  - Einbuchung    → buy (portfolio transfer in at stated cost; skipped when Betrag = 0)
+ *  - Einbuchung    → buy (portfolio transfer in at stated cost; zero-cost entries
+ *                    such as stock splits are included with amount=0 so that the
+ *                    share count remains correct)
  *  - Ausschüttung  → skipped (dividend, not a trade)
  *  - Ausbuchung    → sell (transfer out; closes the holding round so a subsequent
  *                    Einbuchung starts a fresh round at the rebook price)
@@ -255,15 +257,17 @@ export function parseDABTrades(csvText: string): Trade[] {
     const qty = parseDABQty(row[DAB_COL.QTY]?.trim() ?? "");
     if (qty <= 0) continue;
 
-    // Betrag (EUR): positive for buys, negative for sells/dividends
+    // Betrag (EUR): positive for buys, negative for sells/dividends.
+    // amount=0 is legitimate and must NOT be skipped:
+    //  - zero-cost Einbuchung = stock split (new shares added for free; missing
+    //    them would leave qty wrong and inflate apparent per-share cost 3× etc.)
+    //  - zero-proceeds Verkauf = disposal of worthless shares (must be tracked
+    //    to correctly close the holding round, e.g. SPCE final sale at €0)
     const betrag = parseEuroNum(row[DAB_COL.BETRAG]?.trim() ?? "");
     const amount = Math.abs(betrag);
 
-    // Einbuchung at zero cost (e.g. stock splits, free transfers) — skip
-    if (amount === 0) continue;
-
-    // Price per share in EUR derived from settlement amount
-    const price = amount / qty;
+    // Price per share in EUR derived from settlement amount (0 for split shares)
+    const price = qty > 0 ? amount / qty : 0;
 
     // Prefer execution date; fall back to order date
     const dateStr =

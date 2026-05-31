@@ -10,6 +10,9 @@ const YF_CHART_BASE = "https://query1.finance.yahoo.com/v8/finance/chart";
  */
 const CORS_PROXY: string = import.meta.env.VITE_CORS_PROXY as string;
 
+/** Maximum number of price-fetch requests to run in parallel. */
+const CONCURRENT_REQUESTS = 3;
+
 export interface FetchPriceResult {
   data: PriceData;
   /** Tickers for which the fetch failed (network error, non-2xx response, etc.) */
@@ -18,6 +21,8 @@ export interface FetchPriceResult {
 
 /**
  * Fetch historical price data for a list of tickers.
+ * Requests are batched in groups of CONCURRENT_REQUESTS so the CORS proxy
+ * is not overwhelmed while still being faster than fully sequential fetching.
  * Returns both the successful data and any tickers that failed to load
  * so callers can surface errors in the UI rather than silently dropping them.
  */
@@ -30,20 +35,26 @@ export async function fetchPriceData(
   const failed: string[] = [];
   let done = 0;
 
-  for (const ticker of uniqueTickers) {
-    try {
-      const history = await fetchTickerHistory(ticker);
-      if (history.length > 0) {
-        data[ticker] = history;
-      } else {
-        failed.push(ticker);
-      }
-    } catch (err) {
-      console.warn(`Failed to fetch price data for ${ticker}:`, err);
-      failed.push(ticker);
-    }
-    done++;
-    onProgress?.(done, uniqueTickers.length);
+  // Process tickers in concurrent batches.
+  for (let i = 0; i < uniqueTickers.length; i += CONCURRENT_REQUESTS) {
+    const batch = uniqueTickers.slice(i, i + CONCURRENT_REQUESTS);
+    await Promise.all(
+      batch.map(async (ticker) => {
+        try {
+          const history = await fetchTickerHistory(ticker);
+          if (history.length > 0) {
+            data[ticker] = history;
+          } else {
+            failed.push(ticker);
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch price data for ${ticker}:`, err);
+          failed.push(ticker);
+        }
+        done++;
+        onProgress?.(done, uniqueTickers.length);
+      })
+    );
   }
 
   return { data, failed };

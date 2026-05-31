@@ -294,11 +294,27 @@ describe("parseDABTrades", () => {
     expect(trades[0].amount).toBeCloseTo(16484);
   });
 
-  it("skips Einbuchung with Betrag = 0 (free transfer / stock split)", () => {
+  it("includes zero-cost Einbuchung as buy (stock split / free shares)", () => {
+    // Tesla 3:1 split on 25.08.2022: DAB books 100 extra shares at €0.
+    // These must be recorded as a buy so the held qty stays correct.
     const row =
       "005437959009;;Einbuchung;28.03.2026, 01:15:24;402163661;200 Stück;KAWASAKI HEAVY IND.;JP3224200000;858920;;;;;;EUR;Abgerechnet;0,00;EUR;0,00;30.03.2026, 00:00:00;";
     const trades = parseDABTrades(dabCsv(row));
-    expect(trades).toHaveLength(0);
+    expect(trades).toHaveLength(1);
+    expect(trades[0].side).toBe("buy");
+    expect(trades[0].qty).toBeCloseTo(200);
+    expect(trades[0].amount).toBe(0);
+  });
+
+  it("includes zero-proceeds Verkauf as sell (worthless stock disposal)", () => {
+    // Final sale of SPCE shares at €0 — must be tracked to close the holding round.
+    const row =
+      "005437959009;5437959009;Verkauf;29.05.2026, 00:00:00;403288992;2 Stück;VIRGIN GAL.HLDGS NEW O.N.;US92766K4031;A40EFX;Tradegate Wertpapierhandelsbk;Bestens;29.05.2026, 00:00:00;;;EUR;Abgerechnet;4,20;EUR;0,00;29.05.2026, 14:03:33;";
+    const trades = parseDABTrades(dabCsv(row));
+    expect(trades).toHaveLength(1);
+    expect(trades[0].side).toBe("sell");
+    expect(trades[0].qty).toBeCloseTo(2);
+    expect(trades[0].amount).toBe(0);
   });
 
   it("parses Ausbuchung rows as sell", () => {

@@ -25,7 +25,12 @@ export interface Position {
   yfTicker: string;
   totalQty: number;
   avgCost: number;
+  /** Proportional cost of the remaining (currently held) shares. */
   totalCost: number;
+  /** Realized P&L from shares already sold within this holding round.
+   *  realizedPnl = sellProceeds − (soldQty / totalBuyQty) × totalBuyCost
+   *  Zero for positions with no partial sells. */
+  realizedPnl: number;
   currentPrice: number;
   currentValue: number;
   firstBuyDate: Date;
