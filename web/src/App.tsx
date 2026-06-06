@@ -51,7 +51,7 @@ const CHART_RANGE_MS: Record<"5y" | "3y" | "1y" | "6m" | "1m", number> = {
 };
 
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>("research");
+  const [activeTab, setActiveTab] = useState<Tab>("portfolio");
   const [state, setState] = useState<AppState>({ stage: "idle" });
   const [benchmarkTicker, setBenchmarkTicker] = useState(getBenchmarkTicker());
   const [showDetailCharts, setShowDetailCharts] = useState(false);
@@ -252,16 +252,16 @@ function App() {
           <h1>{t.appTitle}</h1>
           <nav className="app-tabs">
             <button
-              className={`app-tab${activeTab === "research" ? " app-tab--active" : ""}`}
-              onClick={() => setActiveTab("research")}
-            >
-              {t.tabResearch}
-            </button>
-            <button
               className={`app-tab${activeTab === "portfolio" ? " app-tab--active" : ""}`}
               onClick={() => setActiveTab("portfolio")}
             >
               {t.tabPortfolio}
+            </button>
+            <button
+              className={`app-tab${activeTab === "research" ? " app-tab--active" : ""}`}
+              onClick={() => setActiveTab("research")}
+            >
+              {t.tabResearch}
             </button>
           </nav>
           {activeTab === "research" && (
@@ -318,6 +318,20 @@ function App() {
                     ))}
                   </select>
                 </div>
+                <details className="portfolio-help">
+                  <summary className="portfolio-help__summary">{t.helpTitle}</summary>
+                  <div className="portfolio-help__body">
+                    <p className="portfolio-help__broker">{t.helpRakutenTitle}</p>
+                    <p className="portfolio-help__nav">{t.helpRakutenNav}</p>
+                    <p className="portfolio-help__files-label">{t.helpRakutenFilesLabel}</p>
+                    <ul className="portfolio-help__files">
+                      <li><code>tradehistory(JP)_YYYYMMDD.csv</code> — {t.helpRakutenJP}</li>
+                      <li><code>tradehistory(US)_YYYYMMDD.csv</code> — {t.helpRakutenUS}</li>
+                      <li><code>tradehistory(INVST)_YYYYMMDD.csv</code> — {t.helpRakutenINVST}</li>
+                    </ul>
+                    <p className="portfolio-help__hint">{t.helpRakutenHint}</p>
+                  </div>
+                </details>
                 <DropZone onAnalyze={handleAnalyze} />
               </>
             )}

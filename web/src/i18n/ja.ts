@@ -250,6 +250,16 @@ const ja: Translations = {
   categoryBreakdown: 'カテゴリー内訳',
   finalScoreTitle: '最終スコア',
 
+  // ── Help section ─────────────────────────────────────────────────────────
+  helpTitle: '取引履歴のエクスポート方法',
+  helpRakutenTitle: '楽天証券',
+  helpRakutenNav: '口座管理 → 取引履歴 → 商品別売買履歴',
+  helpRakutenFilesLabel: '資産種別ごとにCSVをダウンロードしてください：',
+  helpRakutenJP: '国内株式',
+  helpRakutenUS: '米国株式',
+  helpRakutenINVST: '投資信託',
+  helpRakutenHint: 'ダウンロードしたファイルをまとめてドロップできます。重複は自動的に除去されます。',
+
   // ── Research legend ───────────────────────────────────────────────────────
   signalLegend: 'シグナル凡例',
   finalSignalLabel: '最終シグナル',
