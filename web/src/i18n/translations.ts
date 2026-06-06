@@ -192,6 +192,16 @@ export interface Translations {
   categoryBreakdown: string;
   finalScoreTitle: string;
 
+  // ── Help section ─────────────────────────────────────────────────────────
+  helpTitle: string;
+  helpRakutenTitle: string;
+  helpRakutenNav: string;
+  helpRakutenFilesLabel: string;
+  helpRakutenJP: string;
+  helpRakutenUS: string;
+  helpRakutenINVST: string;
+  helpRakutenHint: string;
+
   // ── Research legend ───────────────────────────────────────────────────────
   signalLegend: string;
   finalSignalLabel: string;

@@ -265,6 +265,16 @@ const en: Translations = {
   categoryBreakdown: 'Category Breakdown',
   finalScoreTitle: 'Final Score',
 
+  // ── Help section ─────────────────────────────────────────────────────────
+  helpTitle: 'How to export your trade history',
+  helpRakutenTitle: 'Rakuten Securities (楽天証券)',
+  helpRakutenNav: '口座管理 → 取引履歴 → 商品別売買履歴',
+  helpRakutenFilesLabel: 'Download one CSV per asset type and drop them all here:',
+  helpRakutenJP: '国内株式 (JP Stocks)',
+  helpRakutenUS: '米国株式 (US Stocks)',
+  helpRakutenINVST: '投資信託 (Funds)',
+  helpRakutenHint: 'Drop all downloaded files at once — duplicates are removed automatically.',
+
   // ── Research legend ───────────────────────────────────────────────────────
   signalLegend: 'Signal Legend',
   finalSignalLabel: 'Final Signal',
