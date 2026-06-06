@@ -133,6 +133,21 @@ const en: Translations = {
   showFullHistory: '📂 Full History',
   showActiveOnly: '📊 Active Only',
 
+  // ── Realized P&L section ──────────────────────────────────────────────────
+  realizedSectionTitle: '💰 Realized P&L',
+  realizedSummaryTitle: '📋 Realized Summary',
+  labelRealizedTrades: 'Trades',
+  labelTotalRealizedPnl: 'Total Realized P&L',
+  labelAvgCagr: 'Avg. CAGR',
+  labelWinRate: 'Win Rate',
+  realizedTableTitle: '📋 Realized Trades',
+  colType: 'Type',
+  colSellDate: 'Sell Date',
+  colCost: 'Cost',
+  colProceeds: 'Proceeds',
+  typeFull: 'Full',
+  typePartial: 'Partial',
+
   // ── Ticker input ──────────────────────────────────────────────────────────
   labelTickers: 'Tickers',
   labelBenchmark: 'Benchmark',

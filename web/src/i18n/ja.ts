@@ -133,6 +133,21 @@ const ja: Translations = {
   showFullHistory: '📂 全履歴',
   showActiveOnly: '📊 アクティブのみ',
 
+  // ── Realized P&L section ──────────────────────────────────────────────────
+  realizedSectionTitle: '💰 実現損益',
+  realizedSummaryTitle: '📋 実現サマリー',
+  labelRealizedTrades: '取引数',
+  labelTotalRealizedPnl: '総実現損益',
+  labelAvgCagr: '平均CAGR',
+  labelWinRate: '勝率',
+  realizedTableTitle: '📋 実現取引',
+  colType: '種別',
+  colSellDate: '売却日',
+  colCost: '取得コスト',
+  colProceeds: '売却代金',
+  typeFull: '全売',
+  typePartial: '一部',
+
   // ── Ticker input ──────────────────────────────────────────────────────────
   labelTickers: 'ティッカー',
   labelBenchmark: 'ベンチマーク',
