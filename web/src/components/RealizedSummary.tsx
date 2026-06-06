@@ -25,10 +25,11 @@ export default function RealizedSummary({ entries, baseCurrency }: Props) {
 
   const totalRealizedPnl = entries.reduce((s, e) => s + e.realizedPnl, 0);
 
-  const validCagrs = entries.filter((e) => isFinite(e.cagr));
+  const validCagrs = entries.filter((e) => isFinite(e.cagr) && e.cost > 0);
+  const totalCostForCagr = validCagrs.reduce((s, e) => s + e.cost, 0);
   const avgCagr =
-    validCagrs.length > 0
-      ? validCagrs.reduce((s, e) => s + e.cagr, 0) / validCagrs.length
+    totalCostForCagr > 0
+      ? validCagrs.reduce((s, e) => s + e.cagr * e.cost, 0) / totalCostForCagr
       : null;
 
   const winners = entries.filter((e) => e.realizedPnl > 0).length;
