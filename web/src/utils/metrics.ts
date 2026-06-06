@@ -4,6 +4,7 @@ import type {
   PositionMetrics,
   PriceData,
   ClosedPosition,
+  RealizedEntry,
 } from "./types";
 import { resolveFundTicker } from "./csv";
 import { priceOn, periodReturn } from "./prices";
@@ -527,4 +528,109 @@ export function closedToMetrics(
 /** Get the default benchmark ticker. */
 export function getBenchmarkTicker(): string {
   return DEFAULT_BENCHMARK_TICKER;
+}
+
+/**
+ * Compute one `RealizedEntry` per sell transaction across all holding rounds.
+ *
+ * - **Closed rounds**: every sell trade in rounds that were fully exited.
+ *   The final sell (the one that brings the running qty to zero) gets
+ *   `type: "full"`; any preceding sells in that same round get `type: "partial"`.
+ * - **Active round**: every sell trade in the still-open position gets
+ *   `type: "partial"` because shares remain held.
+ *
+ * Cost basis uses the average-cost (proportional) method — each sell is
+ * attributed `(sellQty / totalBuyQtyInRound) × totalBuyCostInRound`.
+ *
+ * Benchmark CAGR is computed from `firstBuyDate` to `sellDate` using the
+ * already-fetched `priceData[benchmarkTicker]`, consistent with `closedToMetrics`.
+ *
+ * Results are sorted most-recently-sold first.
+ */
+export function computeRealizedEntries(
+  trades: Trade[],
+  priceData: PriceData,
+  benchmarkTicker: string = DEFAULT_BENCHMARK_TICKER
+): RealizedEntry[] {
+  const replay = replayTrades(trades);
+  const bmHistory = priceData[benchmarkTicker];
+  const entries: RealizedEntry[] = [];
+
+  for (const [yfTicker, { closedRounds, activeRound }] of replay) {
+    // Pair each round with whether it is a closed (fully exited) round
+    const rounds: { roundTrades: Trade[]; isClosed: boolean }[] = [
+      ...closedRounds.map((r) => ({ roundTrades: r, isClosed: true })),
+      ...(activeRound ? [{ roundTrades: activeRound, isClosed: false }] : []),
+    ];
+
+    for (const { roundTrades, isClosed } of rounds) {
+      const buys = roundTrades.filter((t) => t.side === "buy");
+      const sells = roundTrades
+        .filter((t) => t.side === "sell")
+        .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+      if (buys.length === 0 || sells.length === 0) continue;
+
+      const firstBuyDate = new Date(
+        Math.min(...buys.map((t) => t.date.getTime()))
+      );
+      const totalBuyQty = buys.reduce((sum, t) => sum + t.qty, 0);
+      const totalBuyCost = buys.reduce((sum, t) => sum + t.amount, 0);
+
+      // Replay the sells to detect which one closes the position (qty → 0)
+      let runningQty = totalBuyQty;
+
+      for (const sell of sells) {
+        runningQty -= sell.qty;
+        const closesPosition = isClosed && runningQty < 0.001;
+        const type: "full" | "partial" = closesPosition ? "full" : "partial";
+
+        const cost =
+          totalBuyQty > 0 ? (sell.qty / totalBuyQty) * totalBuyCost : 0;
+        const proceeds = sell.amount;
+        const realizedPnl = proceeds - cost;
+        const totalReturn = cost > 0 ? realizedPnl / cost : 0;
+
+        const daysHeld = Math.max(
+          1,
+          Math.floor(
+            (sell.date.getTime() - firstBuyDate.getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
+        );
+
+        const rawCagr = Math.pow(1 + totalReturn, 365 / daysHeld) - 1;
+        const cagr = capCagr(rawCagr);
+
+        const bmPeriodReturn = periodReturn(bmHistory, firstBuyDate, sell.date);
+        let bmCagr: number | null = null;
+        let alphaCagr: number | null = null;
+        if (bmPeriodReturn != null) {
+          const rawBmCagr = Math.pow(1 + bmPeriodReturn, 365 / daysHeld) - 1;
+          bmCagr = capCagr(rawBmCagr);
+          alphaCagr = cagr - bmCagr;
+        }
+
+        entries.push({
+          tickerCode: buys[0].tickerCode,
+          name: buys[0].name,
+          yfTicker,
+          type,
+          firstBuyDate,
+          sellDate: sell.date,
+          daysHeld,
+          cost,
+          proceeds,
+          realizedPnl,
+          totalReturn,
+          cagr,
+          bmCagr,
+          alphaCagr,
+        });
+      }
+    }
+  }
+
+  // Most recently sold first
+  return entries.sort((a, b) => b.sellDate.getTime() - a.sellDate.getTime());
 }

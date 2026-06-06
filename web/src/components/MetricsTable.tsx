@@ -48,13 +48,13 @@ function pctColor(val: number | null): string {
 
 const signalColor = (signal: string): string => {
   const map: Record<string, string> = {
-    "🟢 Hold":        "#22c55e",
+    "🟢 Hold": "#22c55e",
     "🟣 Take Profit": "#a78bfa",
-    "🔵 Buy More":    "#60a5fa",
-    "🟡 Watch":       "#fbbf24",
-    "🔴 Sell":        "#f87171",
-    "⏳ Too Early":   "var(--text-muted)",
-    "⬛ Closed":      "var(--text-muted)",
+    "🔵 Buy More": "#60a5fa",
+    "🟡 Watch": "#fbbf24",
+    "🔴 Sell": "#f87171",
+    "⏳ Too Early": "var(--text-muted)",
+    "⬛ Closed": "var(--text-muted)",
   };
   return map[signal] ?? "var(--text-muted)";
 }
@@ -77,19 +77,19 @@ export default function MetricsTable({ metrics, benchmark, baseCurrency, onSelec
     .reduce((sum, m) => sum + m.currentValue, 0);
 
   const HEADERS = [
-    { label: t.colTicker,       align: "left"  },
-    { label: t.colShares,       align: "right" },
+    { label: t.colTicker, align: "left" },
+    { label: t.colShares, align: "right" },
     { label: `${t.colProfit} [${baseCurrency}]`, align: "right" },
     { label: t.colPortfolioPct, align: "right" },
-    { label: t.colAlphaCagr,   align: "right" },
-    { label: t.colDaysHeld,    align: "right" },
-    { label: t.colScore,       align: "right" },
-    { label: t.colSignal,      align: "left"  },
+    { label: t.colAlphaCagr, align: "right" },
+    { label: t.colDaysHeld, align: "right" },
+    { label: t.colScore, align: "right" },
+    { label: t.colSignal, align: "left" },
   ] as const;
-  const closed   = metrics.filter((m) => m.signal === "⬛ Closed");
-  const active   = metrics.filter((m) => m.signal !== "⬛ Closed");
+  const closed = metrics.filter((m) => m.signal === "⬛ Closed");
+  const active = metrics.filter((m) => m.signal !== "⬛ Closed");
   const tooEarly = active.filter((m) => m.signal === "⏳ Too Early");
-  const rest     = active.filter((m) => m.signal !== "⏳ Too Early");
+  const rest = active.filter((m) => m.signal !== "⏳ Too Early");
   rest.sort((a, b) => b.cagr - a.cagr);
   tooEarly.sort((a, b) => b.totalReturn - a.totalReturn);
   closed.sort((a, b) => b.cagr - a.cagr);
@@ -99,7 +99,7 @@ export default function MetricsTable({ metrics, benchmark, baseCurrency, onSelec
     <div style={{ margin: "8px 0 32px" }}>
       <div className="section-title">
         {t.positionMetrics}
-        <span className="muted">vs {benchmark}</span>
+        <span className="muted"> vs {benchmark}</span>
       </div>
 
       <div className="card" style={{ overflowX: "auto" }}>
@@ -123,12 +123,12 @@ export default function MetricsTable({ metrics, benchmark, baseCurrency, onSelec
             {sorted.map((m, idx) => {
               const profit = m.currentValue - m.totalCost + (m.realizedPnl ?? 0);
               const isTooEarlyStart = idx === rest.length && tooEarly.length > 0;
-              const isClosedStart   = idx === rest.length + tooEarly.length && closed.length > 0;
-              const isClosed        = m.signal === "⬛ Closed";
-              const portfolioPct    = isClosed || totalPortfolioValue === 0
+              const isClosedStart = idx === rest.length + tooEarly.length && closed.length > 0;
+              const isClosed = m.signal === "⬛ Closed";
+              const portfolioPct = isClosed || totalPortfolioValue === 0
                 ? null
                 : m.currentValue / totalPortfolioValue;
-              const isSelected      = onSelectTicker ? m.yfTicker === selectedTicker : false;
+              const isSelected = onSelectTicker ? m.yfTicker === selectedTicker : false;
               return (
                 <React.Fragment key={rowKey(m)}>
                   {isTooEarlyStart && (

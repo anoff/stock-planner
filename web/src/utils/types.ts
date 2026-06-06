@@ -85,6 +85,44 @@ export interface ClosedPosition {
   cagr: number;
 }
 
+/**
+ * A single realized event — either the final sell of a fully-closed holding round
+ * or an individual partial-sell trade while the position is still active.
+ *
+ * One row is emitted per sell transaction so that multi-leg exits appear as
+ * separate rows with their own cost basis, proceeds, and benchmark comparison.
+ */
+export interface RealizedEntry {
+  tickerCode: string;
+  name: string;
+  yfTicker: string;
+  /** "full" = this sell closed the entire holding round (qty → 0).
+   *  "partial" = shares were sold but the position remains open (or this was
+   *  one of several sells before the final closure). */
+  type: "full" | "partial";
+  /** First buy date of the holding round this sell belongs to. */
+  firstBuyDate: Date;
+  /** Date of this specific sell transaction. */
+  sellDate: Date;
+  /** Calendar days from firstBuyDate to sellDate (min 1). */
+  daysHeld: number;
+  /** Proportional cost basis attributed to the sold shares (average-cost method). */
+  cost: number;
+  /** Proceeds received from this sell trade. */
+  proceeds: number;
+  /** proceeds − cost */
+  realizedPnl: number;
+  /** (proceeds − cost) / cost */
+  totalReturn: number;
+  /** Annualized return (CAGR) over the holding period. */
+  cagr: number;
+  /** Benchmark CAGR over the same period (firstBuyDate → sellDate). Null when
+   *  price history doesn't cover the period. */
+  bmCagr: number | null;
+  /** cagr − bmCagr */
+  alphaCagr: number | null;
+}
+
 /** Available benchmark options for reference comparison. Used by both Research and Rakuten Analysis tabs. */
 export const BENCHMARK_OPTIONS: { ticker: string; name: string }[] = [
   { ticker: "ACWI",      name: "MSCI All Country (ACWI)" },

@@ -112,6 +112,21 @@ export interface Translations {
   showFullHistory: string;
   showActiveOnly: string;
 
+  // ── Realized P&L section ──────────────────────────────────────────────────
+  realizedSectionTitle: string;
+  realizedSummaryTitle: string;
+  labelRealizedTrades: string;
+  labelTotalRealizedPnl: string;
+  labelAvgCagr: string;
+  labelWinRate: string;
+  realizedTableTitle: string;
+  colType: string;
+  colSellDate: string;
+  colCost: string;
+  colProceeds: string;
+  typeFull: string;
+  typePartial: string;
+
   // ── Ticker input ──────────────────────────────────────────────────────────
   labelTickers: string;
   labelBenchmark: string;

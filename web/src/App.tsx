@@ -7,17 +7,20 @@ import ResearchPage from "./components/ResearchPage";
 import PositionChart from "./components/PositionChart";
 import OutperformanceChart from "./components/OutperformanceChart";
 import StockDetail from "./components/StockDetail";
+import RealizedSummary from "./components/RealizedSummary";
+import RealizedTable from "./components/RealizedTable";
 import { fetchPriceData } from "./utils/prices";
 import {
   aggregatePositions,
   calculateMetrics,
   closedToMetrics,
   computeClosedPositions,
+  computeRealizedEntries,
   getBenchmarkTicker,
 } from "./utils/metrics";
 import { fetchAndComputeResearchResult } from "./utils/research";
 import type { ResearchResult } from "./utils/research";
-import type { ClosedPosition, PositionMetrics, PriceData, Trade } from "./utils/types";
+import type { ClosedPosition, PositionMetrics, PriceData, RealizedEntry, Trade } from "./utils/types";
 import { BENCHMARK_OPTIONS } from "./utils/types";
 import { ThemeContext, CHART_COLORS } from "./theme";
 import type { Theme } from "./theme";
@@ -30,10 +33,11 @@ type Tab = "research" | "portfolio";
 type AppState =
   | { stage: "idle" }
   | { stage: "fetching"; progress: number; total: number }
-  | {
+  |     {
       stage: "done";
       metrics: PositionMetrics[];
       closed: ClosedPosition[];
+      realized: RealizedEntry[];
       priceData: PriceData;
       trades: Trade[];
       tradeCount: number;
@@ -56,6 +60,7 @@ function App() {
   const [benchmarkTicker, setBenchmarkTicker] = useState(getBenchmarkTicker());
   const [showDetailCharts, setShowDetailCharts] = useState(false);
   const [showFullHistory, setShowFullHistory] = useState(false);
+  const [showRealized, setShowRealized] = useState(true);
   const [chartRange, setChartRange] = useState<"5y" | "3y" | "1y" | "6m" | "1m">("5y");
   const [rangeStart, setRangeStart] = useState<Date>(
     () => new Date(Date.now() - CHART_RANGE_MS["5y"])
@@ -136,6 +141,7 @@ function App() {
       const positions = aggregatePositions(allTrades, priceData);
       const metrics = calculateMetrics(positions, priceData, benchmarkTicker);
       const closed = computeClosedPositions(allTrades);
+      const realized = computeRealizedEntries(allTrades, priceData, benchmarkTicker);
 
       if (metrics.length === 0 && closed.length === 0) {
         setState({
@@ -154,6 +160,7 @@ function App() {
         stage: "done",
         metrics,
         closed,
+        realized,
         priceData,
         trades: allTrades,
         tradeCount: buyTrades.length,
@@ -538,6 +545,36 @@ function App() {
                     </>
                   );
                 })()}
+
+                {/* ── Realized P&L section ─────────────────────────── */}
+                {state.realized.length > 0 && (
+                  <div style={{ margin: "32px 0" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                      <div className="section-title" style={{ margin: 0 }}>
+                        {t.realizedSectionTitle}
+                      </div>
+                      <button
+                        className={`btn${showRealized ? " btn-active" : ""}`}
+                        onClick={() => setShowRealized((v) => !v)}
+                      >
+                        {showRealized ? t.hide : t.show}
+                      </button>
+                    </div>
+                    {showRealized && (
+                      <>
+                        <RealizedSummary
+                          entries={state.realized}
+                          baseCurrency={state.baseCurrency}
+                        />
+                        <RealizedTable
+                          entries={state.realized}
+                          benchmark={benchmarkName}
+                          baseCurrency={state.baseCurrency}
+                        />
+                      </>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </>

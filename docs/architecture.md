@@ -124,10 +124,10 @@ stock-planner/
 
 | Module | Responsibility | Key exports |
 |---|---|---|
-| `utils/types.ts` | Shared TypeScript interfaces and constants | `Trade`, `Position`, `PositionMetrics`, `PriceData`, `BENCHMARK_OPTIONS` |
+| `utils/types.ts` | Shared TypeScript interfaces and constants | `Trade`, `Position`, `PositionMetrics`, `ClosedPosition`, `RealizedEntry`, `PriceData`, `BENCHMARK_OPTIONS` |
 | `utils/csv.ts` | Rakuten CSV decoding (Shift-JIS) and trade parsing | `decodeFile`, `parseTrades`, `parsePastedTrades` |
 | `utils/prices.ts` | Yahoo Finance price history fetching and point-in-time lookup | `fetchPriceData`, `priceOn`, `periodReturn` |
-| `utils/metrics.ts` | Portfolio aggregation and performance metrics (CAGR, alpha, fuzzy signal) | `aggregatePositions`, `calculateMetrics`, `computeClosedPositions` |
+| `utils/metrics.ts` | Portfolio aggregation and performance metrics (CAGR, alpha, fuzzy signal) | `aggregatePositions`, `calculateMetrics`, `computeClosedPositions`, `computeRealizedEntries`, `closedToMetrics` |
 | `utils/research.ts` | Research mode: fetch fundamentals, compute all metrics, run scoring | `fetchStockInfo`, `computeResearchMetrics`, `parseFundamentalsTimeSeries` |
 | `utils/scoring.ts` | 5-category scoring engine (ported from `finance/scoring.py`) | `evaluateStock`, `CATEGORIES`, `METRIC_BANDS_FALLBACK`, `DEFAULT_WEIGHTS` |
 
@@ -148,12 +148,14 @@ stock-planner/
 | Component | Purpose |
 |---|---|
 | `DropZone` | File drag-and-drop target and paste handler |
-| `Summary` | Portfolio-level aggregate stats (total value, average alpha) |
-| `MetricsTable` | Per-position table — CAGR, alpha, signal, returns |
+| `Summary` | Portfolio-level aggregate stats for active (and optionally closed) positions |
+| `MetricsTable` | Per-position table — CAGR, alpha, signal, returns; supports Full History toggle |
 | `OutperformanceChart` | Bar chart of alpha per position |
 | `ScatterPlot` | Alpha vs 6M momentum scatter — identifies quadrant (strong hold, watch, sell, etc.) |
 | `PositionChart` | Price timeseries per position with buy/sell markers |
-| `ClosedPositions` | Table of fully-sold positions with realized CAGR |
+| `RealizedSummary` | 4 summary cards for the realized P&L section: trade count, total P&L, avg CAGR, win rate |
+| `RealizedTable` | Per-sell-transaction table with type (Full/Partial), cost, proceeds, P&L, return, CAGR, α CAGR |
+| `ClosedPositions` | *(legacy — superseded by RealizedTable and Full History mode in MetricsTable)* |
 
 ---
 
@@ -210,17 +212,20 @@ App.processTrades(trades)
         ├─ fetchPriceData(tickers) → PriceData
         ├─ aggregatePositions(trades, priceData) → Position[]
         ├─ calculateMetrics(positions, priceData, benchmark) → PositionMetrics[]
-        └─ computeClosedPositions(trades) → ClosedPosition[]
-                │
+        ├─ computeClosedPositions(trades) → ClosedPosition[]
+        └─ computeRealizedEntries(trades, priceData, benchmark) → RealizedEntry[]
+                │  (one row per sell transaction; type = full | partial;
+                │   cost basis via average-cost method; benchmark α CAGR per entry)
                 ▼
-        App: setState(done, { metrics, closed, priceData, trades })
+        App: setState(done, { metrics, closed, realized, priceData, trades })
                 │
                 ├─ Summary
                 ├─ OutperformanceChart
-                ├─ MetricsTable
+                ├─ MetricsTable  [Full History toggle merges closed via closedToMetrics()]
                 ├─ ScatterPlot
                 ├─ PositionChart × N (togglable, range selector)
-                └─ ClosedPositions
+                ├─ RealizedSummary  [trade count · total P&L · avg CAGR · win rate]
+                └─ RealizedTable   [per-sell-transaction: cost, proceeds, P&L, return, CAGR, α CAGR]
 ```
 
 ---
